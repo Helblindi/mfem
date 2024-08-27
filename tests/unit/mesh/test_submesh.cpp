@@ -541,25 +541,11 @@ TEST_CASE("InterfaceTransferSolve", "[SubMesh]")
    CHECK((x_sub.Norml2() / x_sub.Size()) == MFEM_Approx(0.0, 1e-7, 1e-7));
 }
 
-struct NCSubMeshExposed : public NCSubMesh
+struct NCMeshExposed : public NCMesh
 {
-   NCSubMeshExposed(const NCSubMesh &ncsubmesh) : NCSubMesh(ncsubmesh) {}
-
-   using NCSubMesh::elements;
-   using NCSubMesh::leaf_elements;
-
-   int CountUniqueLeafElements() const
-   {
-      int local = 0;
-      for (auto i : leaf_elements)
-      {
-         if (elements[i].rank == MyRank)
-         {
-            ++local;
-         }
-      }
-      return local;
-   }
+   NCMeshExposed(const NCMesh &ncsubmesh) : NCMesh(ncsubmesh) {}
+   using NCMesh::elements;
+   using NCMesh::leaf_elements;
 };
 
 void CHECK_NORM(Vector &v, bool small = true)
@@ -668,7 +654,7 @@ void CheckProjectMatch(Mesh &mesh, SubMesh &submesh, FECType fec_type,
    }
 }
 
-TEST_CASE("VolumeNCSubMesh", "[SubMesh]")
+TEST_CASE("VolumeNCMesh", "[SubMesh]")
 {
    bool use_tet = GENERATE(false,true);
 
@@ -686,9 +672,9 @@ TEST_CASE("VolumeNCSubMesh", "[SubMesh]")
          auto submesh = SubMesh::CreateFromDomain(mesh, subdomain_attributes);
 
          // Cast to an exposed variant to explore the internals.
-         auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+         auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
          CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-         CHECK(ncmesh_exposed.CountUniqueLeafElements() == 8*8);
+         CHECK(ncmesh_exposed.leaf_elements.Size() == 8*8);
          for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
          {
             CAPTURE(fec_type);
@@ -704,9 +690,9 @@ TEST_CASE("VolumeNCSubMesh", "[SubMesh]")
          auto submesh = SubMesh::CreateFromDomain(mesh, subdomain_attributes);
 
          // Cast to an exposed variant to explore the internals.
-         auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+         auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
          CHECK(ncmesh_exposed.GetNumRootElements() == mesh.ncmesh->GetNumRootElements());
-         CHECK(ncmesh_exposed.CountUniqueLeafElements() == 2*8*8);
+         CHECK(ncmesh_exposed.leaf_elements.Size() == 2*8*8);
          for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
          {
             CAPTURE(fec_type);
@@ -726,9 +712,9 @@ TEST_CASE("VolumeNCSubMesh", "[SubMesh]")
                                        mesh.bdr_attributes.Max(), backwards);
          {
             auto submesh = SubMesh::CreateFromDomain(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 8 - 1 + 8);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 8 - 1 + 8);
             CAPTURE(subdomain_attributes[0], backwards);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
@@ -740,9 +726,9 @@ TEST_CASE("VolumeNCSubMesh", "[SubMesh]")
                                        mesh.bdr_attributes.Max(), backwards);
          {
             auto submesh = SubMesh::CreateFromDomain(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 8 - 1 + 8 - 1 + 8);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 8 - 1 + 8 - 1 + 8);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -757,9 +743,9 @@ TEST_CASE("VolumeNCSubMesh", "[SubMesh]")
                                      mesh.bdr_attributes.Max(), backwards);
          {
             auto submesh = SubMesh::CreateFromDomain(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 8 - 1 + 8);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 8 - 1 + 8);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -770,9 +756,9 @@ TEST_CASE("VolumeNCSubMesh", "[SubMesh]")
                                      mesh.bdr_attributes.Max(), backwards);
          {
             auto submesh = SubMesh::CreateFromDomain(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 8 - 1 + 8 - 1 + 8);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 8 - 1 + 8 - 1 + 8);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -783,7 +769,7 @@ TEST_CASE("VolumeNCSubMesh", "[SubMesh]")
    }
 }
 
-TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
+TEST_CASE("ExteriorSurfaceNCMesh", "[SubMesh]")
 {
    SECTION("Hex")
    {
@@ -797,9 +783,9 @@ TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
          {
             Array<int> subdomain_attributes{GENERATE(range(1,6))};
             auto submesh = SubMesh::CreateFromBoundary(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 4*4);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 4*4);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -813,9 +799,9 @@ TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
             subdomain_attributes[0] = GENERATE(range(1,6));
             subdomain_attributes[1] = 1 + (subdomain_attributes[0] % 6);
             auto submesh = SubMesh::CreateFromBoundary(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 2);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 2*4*4);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 2*4*4);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -832,9 +818,9 @@ TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
          SECTION("Single")
          {
             auto submesh = SubMesh::CreateFromBoundary(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 4 - 1 + 4);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 4 - 1 + 4);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type, subdomain_attributes[0]);
@@ -846,9 +832,9 @@ TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
          {
             RefineSingleAttachedElement(mesh, 1, subdomain_attributes[0], false);
             auto submesh = SubMesh::CreateFromBoundary(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 4 - 1 + 4 - 1 + 4);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 4 - 1 + 4 - 1 + 4);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -870,9 +856,9 @@ TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
          {
             Array<int> subdomain_attributes{GENERATE(range(1,4))};
             auto submesh = SubMesh::CreateFromBoundary(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 4*4);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 4*4);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -886,9 +872,9 @@ TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
             subdomain_attributes[0] = GENERATE(range(1,4));
             subdomain_attributes[1] = 1 + (subdomain_attributes[0] % 4);
             auto submesh = SubMesh::CreateFromBoundary(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 2);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 2*4*4);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 2*4*4);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -905,9 +891,9 @@ TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
          SECTION("Single")
          {
             auto submesh = SubMesh::CreateFromBoundary(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 4 - 1 + 4);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 4 - 1 + 4);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);
@@ -918,9 +904,9 @@ TEST_CASE("ExteriorSurfaceNCSubMesh", "[SubMesh]")
          {
             RefineSingleAttachedElement(mesh, 1, subdomain_attributes[0], false);
             auto submesh = SubMesh::CreateFromBoundary(mesh, subdomain_attributes);
-            auto &ncmesh_exposed = static_cast<NCSubMeshExposed&>(*submesh.ncmesh);
+            auto ncmesh_exposed = NCMeshExposed(*submesh.ncmesh);
             CHECK(ncmesh_exposed.GetNumRootElements() == 1);
-            CHECK(ncmesh_exposed.CountUniqueLeafElements() == 4 - 1 + 4 - 1 + 4);
+            CHECK(ncmesh_exposed.leaf_elements.Size() == 4 - 1 + 4 - 1 + 4);
             for (auto fec_type : {FECType::H1, FECType::L2, FECType::ND, FECType::RT})
             {
                CAPTURE(fec_type);

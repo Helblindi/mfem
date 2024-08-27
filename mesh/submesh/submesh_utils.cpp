@@ -10,11 +10,10 @@
 // CONTRIBUTING.md for details.
 
 #include "submesh_utils.hpp"
-#include "submesh.hpp"
-#include "psubmesh.hpp"
-#include "pncsubmesh.hpp"
 #include "ncsubmesh.hpp"
-#include "../ncmesh_tables.hpp"
+#include "submesh.hpp"
+#include "pncsubmesh.hpp"
+#include "psubmesh.hpp"
 
 #include <numeric>
 
@@ -80,7 +79,7 @@ AddElementsToMesh(const Mesh& parent,
    bool new_vert;
    for (auto v : parent_vertex_ids)
    {
-      auto mesh_vertex_id = vertex_ids.Get(v, new_vert);
+      vertex_ids.Get(v, new_vert);
       MFEM_ASSERT(new_vert, "Vertex should be unique");
       mesh.AddVertex(parent.GetVertex(v));
    }
@@ -391,7 +390,6 @@ void AddBoundaryElements(SubMeshT &mesh,
 
       if (InteriorBdrElems > 0)
       {
-         const int OldNumOfBdrElements = NumOfBdrElements;
          NumOfBdrElements += InteriorBdrElems;
          boundary.Reserve(NumOfBdrElements);
          be_to_face.Reserve(NumOfBdrElements);
@@ -463,17 +461,74 @@ Geometry::Type FaceGeomFromNodes(const std::array<int, NCMesh::MaxFaceNodes>
    return Geometry::Type::SQUARE;
 };
 
+
+/**
+ * @brief Reorder a container of nodes based on orientation and geometry.
+ *
+ * @tparam FaceNodesT Type of the container of nodes
+ * @param nodes Instance to be reordered
+ * @param geom Geometry defining the face
+ * @param orientation Orientation of the face
+ */
+template <typename FaceNodesT>
+void ReorientFaceNodesByOrientation(FaceNodesT &nodes, Geometry::Type geom,
+                                    int orientation)
+{
+   auto permute = [&]() -> std::array<int, NCMesh::MaxFaceNodes>
+   {
+      if (geom == Geometry::Type::SEGMENT)
+      {
+         switch (orientation) // degenerate (0,0,1,1)
+         {
+            case 0: return {0,1,2,3};
+            case 1: return {2,3,0,1};
+            default: MFEM_ABORT("Unexpected orientation!");
+         }
+      }
+      else if (geom == Geometry::Type::TRIANGLE)
+      {
+         switch (orientation)
+         {
+            case 0: return {0,1,2,3};
+            case 5: return {0,2,1,3};
+            case 2: return {1,2,0,3};
+            case 1: return {1,0,2,3};
+            case 4: return {2,0,1,3};
+            case 3: return {2,1,0,3};
+            default: MFEM_ABORT("Unexpected orientation!");
+         }
+      }
+      else if (geom == Geometry::Type::SQUARE)
+      {
+         switch (orientation)
+         {
+            case 0: return {0,1,2,3};
+            case 1: return {0,3,2,1};
+            case 2: return {1,2,3,0};
+            case 3: return {1,0,3,2};
+            case 4: return {2,3,0,1};
+            case 5: return {2,1,0,3};
+            case 6: return {3,0,1,2};
+            case 7: return {3,2,1,0};
+            default: MFEM_ABORT("Unexpected orientation!");
+         }
+      }
+      else { MFEM_ABORT("Unexpected face geometry!"); }
+   }();
+   Permute(Array<int>(permute.data(), NCMesh::MaxFaceNodes), nodes);
+}
+
 } // namespace
 
-template<typename NCMeshT, typename NCSubMeshT>
-void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
-                       const Array<int> &attributes)
+template<typename NCSubMeshT>
+void ConstructFaceTree(NCSubMeshT &submesh, const Array<int> &attributes)
 {
    // Convenience references to avoid `submesh.` repeatedly.
    auto &parent_node_ids = submesh.parent_node_ids_;
    auto &parent_element_ids = submesh.parent_element_ids_;
    auto &parent_to_submesh_node_ids = submesh.parent_to_submesh_node_ids_;
    auto &parent_to_submesh_element_ids = submesh.parent_to_submesh_element_ids_;
+   const auto &parent = *submesh.GetParent();
 
    // Collect parent vertex nodes to add in sequence.
    // Map from parent nodes to the new element in the ncsubmesh.
@@ -482,9 +537,10 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
    std::set<int> new_nodes;
    parent_to_submesh_element_ids.reserve(parent.GetNumFaces());
    parent_element_ids.Reserve(parent.GetNumFaces());
-   const auto &face_list = const_cast<NCMeshT&>(parent).GetFaceList();
-   // Double indexing loop because parent.faces begin() and end() do not align with
-   // index 0 and size-1.
+   // Base class cast then const cast because GetFaceList is just in time constructed.
+   const auto &face_list = const_cast<NCMesh&>(static_cast<const NCMesh&>
+                                               (parent)).GetFaceList();
+   // Double indexing loop because begin() and end() do not align with index 0 and size-1.
    for (int i = 0, ipe = 0; ipe < parent.GetNumFaces(); i++)
    {
       const auto &face = parent.GetFace(i);
@@ -497,7 +553,7 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
          ) { continue; }
 
       auto face_type = face_list.GetMeshIdType(face.index);
-      auto fn = FaceNodes{parent.FindFaceNodes(face)};
+      auto fn = FaceNodes{submesh.parent_->FindFaceNodes(face)};
       if (pnodes_new_elem.find(fn) != pnodes_new_elem.end()) { continue; }
 
       // TODO: Internal nc submesh can be constructed and solved on, but the transfer
@@ -510,7 +566,7 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
       int new_elem_id = submesh.AddElement(face_geom, face.attribute);
 
       // Rank needs to be established by presence (or lack of) in the submesh.
-      submesh.elements[new_elem_id].rank = [&parent, &face, &submesh]()
+      submesh.elements[new_elem_id].rank = [&parent, &face]()
       {
          auto rank0 = face.elem[0] >= 0 ? parent.GetElement(face.elem[0]).rank : -1;
          auto rank1 = face.elem[1] >= 0 ? parent.GetElement(face.elem[1]).rank : -1;
@@ -538,8 +594,8 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
       gi.InitGeom(face_geom);
       for (int e = 0; e < gi.ne; e++)
       {
-         new_nodes.insert(parent.nodes.FindId(fn.nodes[gi.edges[e][0]],
-                                              fn.nodes[gi.edges[e][1]]));
+         new_nodes.insert(submesh.ParentNodes().FindId(fn.nodes[gi.edges[e][0]],
+                                                       fn.nodes[gi.edges[e][1]]));
       }
 
       /*
@@ -555,7 +611,7 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
       */
       while (true)
       {
-         int child = parent.ParentFaceNodes(fn.nodes);
+         int child = submesh.parent_->ParentFaceNodes(fn.nodes);
          if (child == -1) // A root face
          {
             submesh.elements[new_elem_id].parent = -1;
@@ -570,8 +626,9 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
             // Add in this parent
             int pelem_id = submesh.AddElement(FaceGeomFromNodes(fn.nodes), face.attribute);
             pelem = pnodes_new_elem.emplace(fn, pelem_id).first;
-            auto parent_face_id = parent.faces.FindId(fn.nodes[0], fn.nodes[1], fn.nodes[2],
-                                                      fn.nodes[3]);
+            auto parent_face_id = submesh.ParentFaces().FindId(fn.nodes[0], fn.nodes[1],
+                                                               fn.nodes[2],
+                                                               fn.nodes[3]);
             parent_element_ids.Append(parent_face_id);
          }
          else
@@ -602,14 +659,14 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
                   // discovered parent order should be the same for all descendent
                   // faces. If this branch is triggered twice for a given parent face,
                   // duplicate child elements may be marked.
-                  int child[NCMesh::MaxFaceNodes];
+                  int child_nodes[NCMesh::MaxFaceNodes];
                   for (int i1 = 0; i1 < NCMesh::MaxFaceNodes; i1++)
                      for (int i2 = 0; i2 < NCMesh::MaxFaceNodes; i2++)
                         if (fn.nodes[i1] == pelem->first.nodes[i2])
                         {
-                           child[i2] = parent_elem.child[i1]; break;
+                           child_nodes[i2] = parent_elem.child[i1]; break;
                         }
-                  std::copy(child, child+NCMesh::MaxFaceNodes, parent_elem.child);
+                  std::copy(child_nodes, child_nodes+NCMesh::MaxFaceNodes, parent_elem.child);
                }
                // Re-key the map
                pnodes_new_elem.erase(pelem->first);
@@ -633,7 +690,7 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
 
    MFEM_ASSERT(parent_element_ids.Size() == submesh.elements.Size(),
                parent_element_ids.Size() << ' ' << submesh.elements.Size());
-   std::vector<FaceNodes> new_elem_to_parent_face_nodes(pnodes_new_elem.size());
+   Array<FaceNodes> new_elem_to_parent_face_nodes(pnodes_new_elem.size());
    /*
       All elements have been added into the tree but
       a) The nodes are all from the parent ncmesh
@@ -669,8 +726,8 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
       const auto &elem_r = submesh.elements[r];
       if (elem_l.parent == elem_r.parent)
       {
-         const auto &fnl = new_elem_to_parent_face_nodes.at(l).nodes;
-         const auto &fnr = new_elem_to_parent_face_nodes.at(r).nodes;
+         const auto &fnl = new_elem_to_parent_face_nodes[l].nodes;
+         const auto &fnr = new_elem_to_parent_face_nodes[r].nodes;
          return std::lexicographical_compare(fnl.begin(), fnl.end(), fnr.begin(),
                                              fnr.end());
       }
@@ -689,7 +746,6 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
 
    Array<int> new_to_old(submesh.elements.Size()),
          old_to_new(submesh.elements.Size());
-   int sorts = 0;
    while (!parental_sorted())
    {
       // Stably reorder elements in order of refinement, and by parental nodes within
@@ -739,11 +795,11 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
       if (elem.IsLeaf())
       {
          bool new_id;
-         auto &gi = submesh.GI[elem.geom];
+         auto &gi = submesh.GI[elem.Geom()];
          gi.InitGeom(elem.Geom());
          for (int e = 0; e < gi.ne; e++)
          {
-            const int pid = parent.nodes.FindId(
+            const int pid = submesh.ParentNodes().FindId(
                                elem.node[gi.edges[e][0]], elem.node[gi.edges[e][1]]);
             MFEM_ASSERT(pid >= 0, elem.node[gi.edges[e][0]] << ' ' <<
                         elem.node[gi.edges[e][1]]);
@@ -773,31 +829,32 @@ void ConstructFaceTree(const NCMeshT &parent, NCSubMeshT &submesh,
    }
 }
 
+
 // Explicit instantiations
-template void ConstructFaceTree(const NCMesh& parent, NCSubMesh &submesh,
+template void ConstructFaceTree(NCSubMesh &submesh,
                                 const Array<int> &attributes);
 #ifdef MFEM_USE_MPI
-template void ConstructFaceTree(const ParNCMesh& parent, ParNCSubMesh &submesh,
+template void ConstructFaceTree(ParNCSubMesh &submesh,
                                 const Array<int> &attributes);
 #endif
 
-template <typename NCMeshT, typename NCSubMeshT>
-void ConstructVolumeTree(const NCMeshT &parent, NCSubMeshT &submesh,
-                         const Array<int> &attributes)
+template <typename NCSubMeshT>
+void ConstructVolumeTree(NCSubMeshT &submesh, const Array<int> &attributes)
 {
    // Convenience references to avoid `submesh.` repeatedly.
    auto &parent_node_ids = submesh.parent_node_ids_;
    auto &parent_element_ids = submesh.parent_element_ids_;
    auto &parent_to_submesh_node_ids = submesh.parent_to_submesh_node_ids_;
    auto &parent_to_submesh_element_ids = submesh.parent_to_submesh_element_ids_;
+   const auto &parent = *submesh.GetParent();
 
    UniqueIndexGenerator node_ids;
    // Loop over elements of the parent NCMesh. If the element has the attribute, copy it.
-   parent_to_submesh_element_ids.reserve(parent.elements.Size());
+   parent_to_submesh_element_ids.reserve(parent.GetNumElements());
    std::set<int> new_nodes;
-   for (int ipe = 0; ipe < parent.elements.Size(); ipe++)
+   for (int ipe = 0; ipe < parent.GetNumElements(); ipe++)
    {
-      const auto& pe = parent.elements[ipe];
+      const auto& pe = parent.GetElement(ipe);
       if (!HasAttribute(pe, attributes)) { continue; }
 
       const int elem_id = submesh.AddElement(pe);
@@ -805,16 +862,15 @@ void ConstructVolumeTree(const NCMeshT &parent, NCSubMeshT &submesh,
       parent_element_ids.Append(ipe); // submesh -> parent
       parent_to_submesh_element_ids[ipe] = elem_id; // parent -> submesh
       if (!pe.IsLeaf()) { continue; }
-      const auto gi = submesh.GI[pe.geom];
-      bool new_id = false;
+      const auto gi = submesh.GI[pe.Geom()];
       for (int n = 0; n < gi.nv; n++)
       {
          new_nodes.insert(el.node[n]);
       }
       for (int e = 0; e < gi.ne; e++)
       {
-         new_nodes.insert(parent.nodes.FindId(el.node[gi.edges[e][0]],
-                                              el.node[gi.edges[e][1]]));
+         new_nodes.insert(submesh.ParentNodes().FindId(el.node[gi.edges[e][0]],
+                                                       el.node[gi.edges[e][1]]));
       }
    }
 
@@ -830,26 +886,12 @@ void ConstructVolumeTree(const NCMeshT &parent, NCSubMeshT &submesh,
       parent_to_submesh_node_ids[n] = new_node_id;
    }
 
-   // // Loop over submesh vertices, and add each node. Given submesh vertices respect
-   // // ordering of vertices in the parent mesh, this ensures all top level vertices are
-   // // added first as top level nodes. Some of these nodes will not be top level nodes,
-   // // and will require reparenting based on edge data.
-   // for (int iv = 0; iv < submesh.GetNV(); iv++)
-   // {
-   //    bool new_node;
-   //    int parent_vertex_id = submesh.GetParentVertexIDMap()[iv];
-   //    int parent_node_id = parent.vertex_nodeId[parent_vertex_id];
-   //    auto new_node_id = node_ids.Get(parent_node_id, new_node);
-   //    MFEM_ASSERT(!new_node, "Each vertex's node should have already been added");
-   //    nodes[new_node_id].vert_index = iv;
-   // }
-
    // Loop over elements and reference edges and faces (creating any nodes on first encounter).
    for (auto &el : submesh.elements)
    {
       if (el.IsLeaf())
       {
-         const auto gi = submesh.GI[el.geom];
+         const auto gi = submesh.GI[el.Geom()];
          bool new_id = false;
 
          for (int n = 0; n < gi.nv; n++)
@@ -861,24 +903,19 @@ void ConstructVolumeTree(const NCMeshT &parent, NCSubMeshT &submesh,
          }
          for (int e = 0; e < gi.ne; e++)
          {
-            const int pid = parent.nodes.FindId(
+            const int pid = submesh.ParentNodes().FindId(
                                parent_node_ids[el.node[gi.edges[e][0]]],
                                parent_node_ids[el.node[gi.edges[e][1]]]);
             MFEM_ASSERT(pid >= 0, "Edge not found");
             // Convert parent id to a new submesh id.
             auto submesh_node_id = node_ids.Get(pid, new_id);
-            if (new_id)
-            {
-               submesh.nodes.Alloc(submesh_node_id, submesh_node_id, submesh_node_id);
-               parent_node_ids.Append(pid);
-               parent_to_submesh_node_ids[pid] = submesh_node_id;
-            }
+            MFEM_ASSERT(new_id == false, "Should not be new.");
             submesh.nodes[submesh_node_id].edge_refc++; // Register the edge
          }
          for (int f = 0; f < gi.nf; f++)
          {
             const int *fv = gi.faces[f];
-            const int pid = parent.faces.FindId(
+            const int pid = submesh.ParentFaces().FindId(
                                parent_node_ids[el.node[fv[0]]],
                                parent_node_ids[el.node[fv[1]]],
                                parent_node_ids[el.node[fv[2]]],
@@ -886,13 +923,13 @@ void ConstructVolumeTree(const NCMeshT &parent, NCSubMeshT &submesh,
             MFEM_ASSERT(pid >= 0, "Face not found");
             const int id = submesh.faces.GetId(
                               el.node[fv[0]], el.node[fv[1]], el.node[fv[2]], el.node[fv[3]]);
-            submesh.faces[id].attribute = parent.faces[pid].attribute;
+            submesh.faces[id].attribute = submesh.ParentFaces()[pid].attribute;
          }
       }
       else
       {
          // All elements have been collected, remap the child ids.
-         for (int i = 0; i < ref_type_num_children[el.ref_type]; i++)
+         for (int i = 0; i < NCMesh::MaxElemChildren && el.child[i] >= 0; i++)
          {
             el.child[i] = parent_to_submesh_element_ids[el.child[i]];
          }
@@ -903,11 +940,10 @@ void ConstructVolumeTree(const NCMeshT &parent, NCSubMeshT &submesh,
 }
 
 // Explicit instantiations
-template void ConstructVolumeTree(const NCMesh& parent, NCSubMesh &submesh,
+template void ConstructVolumeTree(NCSubMesh &submesh,
                                   const Array<int> &attributes);
 #ifdef MFEM_USE_MPI
-template void ConstructVolumeTree(const ParNCMesh& parent,
-                                  ParNCSubMesh &submesh,
+template void ConstructVolumeTree(ParNCSubMesh &submesh,
                                   const Array<int> &attributes);
 #endif
 

@@ -19,6 +19,9 @@
 
 namespace mfem
 {
+class NCSubMesh;
+class ParNCSubMesh;
+
 namespace SubMeshUtils
 {
 
@@ -144,31 +147,24 @@ void AddBoundaryElements(SubMeshT &mesh,
  * @details This function is only instantiated for type pairs:
  *     <NCMesh, NCSubMesh> and <ParNCMesh, ParNCSubMesh>
  *    Attempting to use it with cross combinations will result in a linker error.
- * @tparam MeshT The parent NCMesh type
- * @tparam SubMeshT The child NCSubMesh type
- * @param[in] parent The volume NCMesh from which the surface NCSubMesh will be built
+ * @tparam NCSubMeshT The NCSubMesh type
  * @param[out] submesh The surface NCSubMesh to be filled from parent.
  * @param attributes The set of attributes defining the submesh.
  */
-template<typename MeshT, typename SubMeshT>
-void ConstructFaceTree(const MeshT &parent, SubMeshT &submesh,
-                       const Array<int> &attributes);
-
+template<typename NCSubMeshT>
+void ConstructFaceTree(NCSubMeshT &submesh, const Array<int> &attributes);
 /**
  * @brief Construct a nonconformal mesh (serial or parallel) for a volume submesh, from an
  * existing nonconformal volume mesh (serial or parallel).
  * @details This function is only instantiated for type pairs:
  *     <NCMesh, NCSubMesh> and <ParNCMesh, ParNCSubMesh>
  *    Attempting to use it with cross combinations will result in a linker error.
- * @tparam MeshT The parent NCMesh type
- * @tparam SubMeshT The child NCSubMesh type
- * @param[in] parent The volume NCMesh from which the surface NCSubMesh will be built
+ * @tparam NCSubMeshT The NCSubMesh type
  * @param[out] submesh The surface NCSubMesh to be filled from parent.
  * @param attributes The set of attributes defining the submesh.
  */
-template <typename NCMeshT, typename NCSubMeshT>
-void ConstructVolumeTree(const NCMeshT &parent, NCSubMeshT &submesh,
-                         const Array<int> &attributes);
+template <typename NCSubMeshT>
+void ConstructVolumeTree(NCSubMeshT &submesh, const Array<int> &attributes);
 
 /**
  * @brief Helper for checking if an object's attributes match a list
@@ -278,61 +274,6 @@ void Permute(Array<int>&& indices, T1& t1, T2& t2, T3& t3)
    }
 }
 
-/**
- * @brief Reorder a container of nodes based on orientation and geometry.
- *
- * @tparam FaceNodes Type of the container of nodes
- * @param nodes Instance to be reordered
- * @param geom Geometry defining the face
- * @param orientation Orientation of the face
- */
-template <typename FaceNodes>
-void ReorientFaceNodesByOrientation(FaceNodes &nodes, Geometry::Type geom,
-                                    int orientation)
-{
-   auto permute = [&]() -> std::array<int, NCMesh::MaxFaceNodes>
-   {
-      if (geom == Geometry::Type::SEGMENT)
-      {
-         switch (orientation) // degenerate (0,0,1,1)
-         {
-            case 0: return {0,1,2,3};
-            case 1: return {2,3,0,1};
-            default: MFEM_ABORT("Unexpected orientation!");
-         }
-      }
-      else if (geom == Geometry::Type::TRIANGLE)
-      {
-         switch (orientation)
-         {
-            case 0: return {0,1,2,3};
-            case 5: return {0,2,1,3};
-            case 2: return {1,2,0,3};
-            case 1: return {1,0,2,3};
-            case 4: return {2,0,1,3};
-            case 3: return {2,1,0,3};
-            default: MFEM_ABORT("Unexpected orientation!");
-         }
-      }
-      else if (geom == Geometry::Type::SQUARE)
-      {
-         switch (orientation)
-         {
-            case 0: return {0,1,2,3};
-            case 1: return {0,3,2,1};
-            case 2: return {1,2,3,0};
-            case 3: return {1,0,3,2};
-            case 4: return {2,3,0,1};
-            case 5: return {2,1,0,3};
-            case 6: return {3,0,1,2};
-            case 7: return {3,2,1,0};
-            default: MFEM_ABORT("Unexpected orientation!");
-         }
-      }
-      else { MFEM_ABORT("Unexpected face geometry!"); }
-   }();
-   Permute(Array<int>(permute.data(), NCMesh::MaxFaceNodes), nodes);
-}
 
 } // namespace SubMeshUtils
 } // namespace mfem

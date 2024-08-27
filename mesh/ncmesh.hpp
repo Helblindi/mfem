@@ -461,7 +461,7 @@ public:
 
    int PrintMemoryDetail() const;
 
-   typedef std::int64_t RefCoord;
+   using RefCoord = std::int64_t;
 
    /** Get edge and face numbering from 'mesh' (i.e., set all Edge::index and
        Face::index) after a new mesh was created from us. */
@@ -592,11 +592,68 @@ protected: // implementation
    BlockArray<Element> elements; // storage for all Elements
    Array<int> free_element_ids;  // unused element ids - indices into 'elements'
 public:
+   /**
+    * @brief The number of nodes
+    *
+    * @return int
+    */
    int GetNumNodes() const { return nodes.Size(); }
+   /**
+    * @brief Access a Node
+    *
+    * @param i Index of the node
+    * @return const Node&
+    */
    const Node& GetNode(int i) const {return nodes[i]; }
+   /**
+    * @brief The number of faces
+    *
+    * @return int
+    */
    int GetNumFaces() const { return faces.Size(); }
+   /**
+    * @brief Access a Face
+    *
+    * @param i Index of the face
+    * @return const Face&
+    */
    const Face& GetFace(int i) const {return faces[i]; }
+   /**
+    * @brief The number of elements
+    *
+    * @return int
+    */
+   int GetNumElements() const { return elements.Size(); }
+   /**
+    * @brief Access an Element
+    *
+    * @param i Index of the element
+    * @return const Element&
+    */
    const Element& GetElement(int i) const { return elements[i]; }
+
+   /**
+    * @brief Given a set of nodes defining a face, traverse the nodes structure to find the
+    * nodes that make up the parent face and replace them.
+    * Additionally return the child index that the child face would be, relative to the
+    * discovered parent face.
+    * @details This method is concerned with the construction of an NCMesh structure for a
+    * d-1 manifold of an existing NCMesh. It forms a key element in a leaf -> root traversal
+    * of the parent ncmesh elements structure.
+    *
+    * @param[out] nodes The collection of nodes whose parent we are searching for
+    * @return int The child index corresponding to placing the face for the original nodes
+    * within the face defined by the returned parent nodes. If child index is -1, then the
+    * face is made up of root nodes, and nodes is unchanged.
+    */
+   int ParentFaceNodes(std::array<int, 4> &nodes) const;
+
+   /**
+    * @brief Find the nodes that make up faces[face].
+    * @return Nodes making up the face
+    */
+   std::array<int, 4> FindFaceNodes(int face) const;
+   std::array<int, 4> FindFaceNodes(const Face &fa) const;
 protected:
 
 
@@ -830,22 +887,6 @@ protected:
    {
       return QuadFaceSplitType(n1, n2, n3, n4) != 0;
    }
-
-   /**
-    * @brief Given a set of nodes defining a face, traverse the nodes structure to find the
-    * nodes that make up the parent face and replace them.
-    * Additionally return the child index that the child face would be, relative to the
-    * discovered parent face.
-    * @details This method is concerned with the construction of an NCMesh structure for a
-    * d-1 manifold of an existing NCMesh. It forms a key element in a leaf -> root traversal
-    * of the parent ncmesh elements structure.
-    *
-    * @param[out] nodes The collection of nodes whose parent we are searching for
-    * @return int The child index corresponding to placing the face for the original nodes
-    * within the face defined by the returned parent nodes. If child index is -1, then the
-    * face is made up of root nodes, and nodes is unchanged.
-    */
-   int ParentFaceNodes(std::array<int, 4> &nodes) const;
 
    void ForceRefinement(int vn1, int vn2, int vn3, int vn4);
 
@@ -1131,13 +1172,6 @@ protected:
    // utility
 
    int GetEdgeMaster(int node) const;
-
-   /**
-    * @brief Find the nodes that make up faces[face].
-    * @return Nodes making up the face
-    */
-   std::array<int, 4> FindFaceNodes(int face) const;
-   std::array<int, 4> FindFaceNodes(const Face &fa) const;
 
    /**
     * @brief Return the number of splits of this edge that have occurred in the

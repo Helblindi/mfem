@@ -260,18 +260,14 @@ NCMesh::NCMesh(const NCMesh &other)
    , root_state(other.root_state)
    , coordinates(other.coordinates)
    , NEdges(other.NEdges)
-   , NGhostEdges(other.NGhostEdges)
    , NFaces(other.NFaces)
+   , NGhostEdges(other.NGhostEdges)
    , NGhostFaces(other.NGhostFaces)
    , boundary_faces(other.boundary_faces)
    , face_geom(other.face_geom)
    , element_vertex(other.element_vertex)
    , shadow(1024, 2048)
 {
-   // other.free_element_ids.Copy(free_element_ids);
-   // other.root_state.Copy(root_state);
-   // other.coordinates.Copy(coordinates);
-
    Update();
 }
 
@@ -2628,7 +2624,6 @@ void NCMesh::OnMeshUpdated(Mesh *mesh)
 
    for (const auto &n : nodes)
    {
-      const int id = nodes.FindId(n.p1, n.p2);
       if (n.p1 != n.p2)
       {
          n_to_n[n.p1].push_back(n.p2);
@@ -2640,7 +2635,6 @@ void NCMesh::OnMeshUpdated(Mesh *mesh)
    {
       const int *ev = edge_vertex->GetRow(i);
       Node* node = nodes.Find(vertex_nodeId[ev[0]], vertex_nodeId[ev[1]]);
-      int node_id = nodes.FindId(vertex_nodeId[ev[0]], vertex_nodeId[ev[1]]);
       MFEM_ASSERT(node && node->HasEdge(),
                   "edge (" << ev[0] << "," << ev[1] << ") not found, "
                   "node = " << node << " node->HasEdge() " << node->HasEdge());
