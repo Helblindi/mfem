@@ -54,13 +54,11 @@ list(APPEND PARMTOP_COMMON_SOURCES
 	pparamnonlinearform.cpp
 	mtop_MMA.cpp
 	DiffusionSolver.cpp
-	MMAOptimizer.cpp
 	)
 list(APPEND PARMTOP_COMMON_HEADERS
 	pparamnonlinearform.hpp
 	mtop_MMA.hpp
 	DiffusionSolver.hpp
-	MMAOptimizer.hpp
 	)
 
 convert_filenames_to_full_paths(PARMTOP_COMMON_SOURCES)
