@@ -137,67 +137,6 @@ private:
 
     MMASubBase* mSubProblem;
 
-    friend class MMASubSerial;
-
-    /// Serial subproblem class
-    class MMASubSerial:public MMASubBase{
-    public:
-        /// Constructor
-        MMASubSerial(MMA* mma, int nVar, int nCon):MMASubBase(mma)
-        {
-            AllocSubData(nVar,nCon);
-        }
-
-        /// Destructor
-        virtual
-        ~MMASubSerial(){FreeSubData();}
-
-        /// Update the optimization parameters
-        virtual
-        void Update(const double* dfdx,
-                    const double* gx,
-                    const double* dgdx,
-                    const double* xmin,
-                    const double* xmax,
-                    const double* xval);
-    private:
-        /// Allocate the memory for the subproblem
-        void AllocSubData(int nVar, int nCon);
-
-        /// Free the memeory for the subproblem
-        void FreeSubData();
-
-        /// Return the KKT norm
-        double KKTNorm(double* y,
-                       const double* dfdx,
-                       const double* gx,
-                       const double* dgdx,
-                       const double* xmin,
-                       const double* xmax,
-                       double* x);
-
-        ///
-        int ittt, itto, itera;
-
-        ///
-        double epsi, rez, rezet;
-        double delz, dz, dzet, azz;
-        double stmxx, stmalfa, stmbeta, stmalbe;
-        double sum, stmalbexx, stminv, steg;
-        double zold, zetold;
-        double residunorm, residumax, resinew;
-        double raa0, albefa, move, xmamieps;
-
-        ///
-        double *sum1, *ux1, *xl1, *plam, *qlam, *gvec, *residu, *GG, *delx, *dely, *dellam,
-               *dellamyi, *diagx, *diagy, *diaglam, *diaglamyi, *bb, *bb1, *Alam, *AA, *AA1,
-               *dlam, *dx, *dy, *dxsi, *deta, *dmu, *Axx, *axz, *ds, *xx, *dxx, *stepxx,
-               *stepalfa, *stepbeta, *xold, *yold, *lamold, *xsiold, *etaold, *muold, *sold,
-               *p0, *q0, *P, *Q, *alfa, *beta, *xmami, *b;
-               
-    };
-
-
     friend class MMASubParallel;
 
     class MMASubParallel:public MMASubBase{

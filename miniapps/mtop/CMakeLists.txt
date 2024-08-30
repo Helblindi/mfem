@@ -14,7 +14,6 @@ list(APPEND SEQMTOP_COMMON_SOURCES
         mtop_integrators.cpp
 	DiffusionSolver.cpp
 	mtop_MMA.cpp
-	MMAOptimizer.cpp
 	MMA.cpp
 	)
 
@@ -23,7 +22,6 @@ list(APPEND SEQMTOP_COMMON_HEADERS
         mtop_integrators.hpp
 	DiffusionSolver.hpp
 	mtop_MMA.hpp
-	MMAOptimizer.hpp
 	MMA.hpp)
 
 convert_filenames_to_full_paths(SEQMTOP_COMMON_SOURCES)
