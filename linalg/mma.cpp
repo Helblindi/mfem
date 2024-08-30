@@ -1218,7 +1218,8 @@ void MMA::MMASubParallel::Update(const double* dfdx,
        }
     }
 
-    b = b_local;
+    std::copy(b_local, b_local + nCon, b);
+
 #ifdef MFEM_USE_MPI
     MPI_Allreduce(b_local, b, nCon, MPI_DOUBLE, MPI_SUM, mma->comm);
 #endif
@@ -1300,7 +1301,8 @@ void MMA::MMASubParallel::Update(const double* dfdx,
           }
        }
 
-       gvec = gvec_local;
+       std::copy(gvec_local, gvec_local + nCon, gvec);
+
 #ifdef MFEM_USE_MPI
        MPI_Allreduce(gvec_local, gvec, nCon, MPI_DOUBLE, MPI_SUM, mma->comm);
 #endif
@@ -1332,6 +1334,7 @@ void MMA::MMASubParallel::Update(const double* dfdx,
 
        global_norm = residunorm;
        global_max = residumax;  
+
 #ifdef MFEM_USE_MPI
        MPI_Allreduce(&residunorm, &global_norm, 1, MPI_DOUBLE, MPI_SUM, mma->comm);
        MPI_Allreduce(&residumax, &global_max, 1, MPI_DOUBLE, MPI_MAX, mma->comm);
@@ -1414,7 +1417,7 @@ void MMA::MMASubParallel::Update(const double* dfdx,
              }
           }
 
-          gvec = gvec_local;
+         std::copy(gvec_local, gvec_local + nCon, gvec);
 #ifdef MFEM_USE_MPI
           MPI_Allreduce(gvec_local, gvec, nCon, MPI_DOUBLE, MPI_SUM, mma->comm);
 #endif
@@ -1430,7 +1433,7 @@ void MMA::MMASubParallel::Update(const double* dfdx,
              diaglamyi[i] = mma->s[i] / mma->lam[i] + 1.0 / diagy[i];
           }
 
-          if (nCon < nVar)
+          if (nCon < nVar_global)
           {
              // bb1 = dellam + dely./diagy - GG*(delx./diagx);
              // bb1 = [bb1; delz];
@@ -1443,7 +1446,8 @@ void MMA::MMASubParallel::Update(const double* dfdx,
                 }
              }
 
-             sum_global = sum_local;
+             std::copy(sum_local, sum_local + nCon, sum_global);
+
 #ifdef MFEM_USE_MPI
              MPI_Allreduce(sum_local, sum_global, nCon, MPI_DOUBLE, MPI_SUM, mma->comm);
 #endif
@@ -1476,7 +1480,7 @@ void MMA::MMASubParallel::Update(const double* dfdx,
                 }
              }
 
-             Alam = Alam_local;
+             std::copy(Alam_local, Alam_local + nCon * nCon, Alam);
 #ifdef MFEM_USE_MPI
              MPI_Reduce(Alam_local, Alam, nCon * nCon, MPI_DOUBLE, MPI_SUM, 0, mma->comm);
 #endif
@@ -1525,10 +1529,10 @@ void MMA::MMASubParallel::Update(const double* dfdx,
                } else {
                   std::cerr << "Error: Argument " << info << " has illegal value." << std::endl;
                }
-            }
 #else
                solveLU(nCon, AA1, bb1, dlam, dz);
 #endif
+            }
 #ifdef MFEM_USE_MPI
             MPI_Bcast(bb1, nCon + 1, MPI_DOUBLE, 0, mma->comm); 
 #endif
@@ -1553,113 +1557,7 @@ void MMA::MMASubParallel::Update(const double* dfdx,
           }
           else
           {
-            /*
-             azz = mma->zet / mma->z;
-             for (int i = 0; i < nCon; i++)
-             {
-                dellamyi[i] = dellam[i] + dely[i] / diagy[i];
-                // azz = zet/z + a'*(a./diaglamyi)
-                azz += mma->a[i] * (mma->a[i] / diaglamyi[i]);
-             }
-
-             // Axx = spdiags(diagx,0,nVar,nVar) + GG'*spdiags(diaglamyiinv,0,nCon,nCon)*GG;
-             // AA = [Axx      axz
-             //       axz'     azz];
-             for (int i = 0; i < nVar; i++)
-             {
-                // Axx =  GG'*spdiags(diaglamyiinv,0,nCon,nCon);
-                for (int k = 0; k < nCon; k++)
-                {
-                   Axx[i * nCon + k] = GG[k * nVar + i] / diaglamyi[k];
-                }
-                axz[i] = 0.0;
-                // axz = -GG'*(a./diaglamyi)
-                for (int j = 0; j < nCon; j++)
-                {
-                   axz[i] -= GG[j * nVar + i] * (mma->a[j] / diaglamyi[j]);
-                }
-             }
-             //Assemble matrix AA
-             for (int i = 0; i < (nVar + 1); i++)
-             {
-                for (int j = 0; j < (nVar + 1); j++)
-                {
-                   // AA = [Axx  .
-                   //       .    .]
-                   AA[i * (nVar + 1) + j] = 0.0;
-                   if (i < nVar && j < nVar)
-                   {
-                      // Axx = Axx*GG
-                      for (int k = 0; k < nCon; k++)
-                      {
-                         AA[i * (nVar + 1) + j] += Axx[i * nCon + k] * GG[k * nVar + j];
-                      }
-                      // Axx = Axx + spdiags(diagx,0,nVar,nVar)
-                      if (i == j)
-                      {
-                         AA[i * (nVar + 1) + j] += diagx[j];
-                      }
-                   }
-                   // AA = [Axx  axz
-                   //       axz' azz]
-                   else if (i < nVar && j == nVar)
-                   {
-                      AA[i * (nVar + 1) + j] = axz[i];
-                   }
-                   else if (i == nVar && j < nVar)
-                   {
-                      AA[i * (nVar + 1) + j] = axz[j];
-                   }
-                   else
-                   {
-                      AA[i * (nVar + 1) + j] = azz;
-                   }
-                }
-             }
-             // bb = [-bx'; -bz]
-             // bx = delx - GG'*(dellamyi./diaglamyi)
-             // bz = delz - a'*(dellamyi./diaglamyi)
-             for (int i = 0; i < nVar; i++)
-             {
-                bb[i] = -delx[i];
-                for (int j = 0; j < nCon; j++)
-                {
-                   bb[i] -= GG[j * nVar + i] * (dellamyi[j] / diaglamyi[j]);
-                }
-             }
-             bb[nVar] = -delz;
-             for (int i = 0; i < nCon; i++)
-             {
-                bb[nVar] += mma->a[i] * (dellamyi[i] / diaglamyi[i]);
-             }
-             // ----------------------------------------------------------------------------
-             //bb = AA\bb --> solve linear system of equations using LAPACK
-             int info;
-             int nLAP = nVar + 1;
-             int nrhs = 1;
-             int lda = nLAP;
-             int ldb = nLAP;
-             int* ipiv = new int[nLAP];
-             dgesv_(&nLAP, &nrhs, AA, &lda, ipiv, bb, &ldb, &info);
-             delete[] ipiv;
-             for (int i = 0; i < nVar; i++)
-             {
-                dx[i] = bb[i];
-             }
-             dz = bb[nVar];
-             // ----------------------------------------------------------------------------
-             //dlam = (GG*dx)./diaglamyi - dz*(a./diaglamyi) + dellamyi./diaglamyi;
-             for (int i = 0; i < nCon; i++)
-             {
-                sum = 0.0;
-                for (int j = 0; j < nVar; j++)
-                {
-                   sum += GG[i * nVar + j] * dx[j];
-                }
-                dlam[i] = sum / diaglamyi[i] - dz * (mma->a[i] / diaglamyi[i]) + dellamyi[i] /
-                          diaglamyi[i];
-             }
-             */
+              mfem_error("MMA: Optimization problem case which has more constraints than desing variables not implemented!");
           }
 
           for (int i = 0; i < nCon; i++)
@@ -1870,7 +1768,8 @@ void MMA::MMASubParallel::Update(const double* dfdx,
                    gvec_local[i] = gvec_local[i] + P[i * nVar + j] / ux1[j] + Q[i * nVar + j] / xl1[j];
                 }
              }
-             gvec = gvec_local;
+             std::copy(gvec_local, gvec_local + nCon, gvec);
+             
 #ifdef MFEM_USE_MPI
              MPI_Allreduce(gvec_local, gvec, nCon, MPI_DOUBLE, MPI_SUM, mma->comm); 
 #endif

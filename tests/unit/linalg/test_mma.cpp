@@ -93,7 +93,7 @@ double dg0(mfem::Vector& x, mfem::Vector& dx)
     return rez-1.0;
 }
 
-TEST_CASE("MMA Test", "[MMA]")
+TEST_CASE("MMA Test", "[Parallel], [MMA]")
 {
     int world_size = 1;
 #ifdef MFEM_USE_MPI
@@ -153,10 +153,5 @@ TEST_CASE("MMA Test", "[MMA]")
 
    delete mmaa;
 
-
-   SECTION("test objective")
-   {
-
-      REQUIRE(o == 0.000579085);
-   }
+   REQUIRE( std::abs(o - 0.0005790847638021212) < 1e-12 );
 }

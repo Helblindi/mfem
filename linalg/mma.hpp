@@ -208,6 +208,10 @@ private:
         {
             AllocSubData(nVar,nCon);
 
+            nVar_global = nVar;
+#ifdef MFEM_USE_MPI
+            MPI_Allreduce(&nVar, &nVar_global, 1, MPI_INT, MPI_SUM, mma->comm);
+#endif
         }
 
         /// Destructor
@@ -226,7 +230,7 @@ private:
                     const double* xval);
 
     private:
-        int ittt, itto, itera;
+        int ittt, itto, itera, nVar_global;
 
         double epsi, rez, rezet, delz, dz, dzet, azz, stmxx, stmalfa, stmbeta,
                sum, stminv, steg, zold, zetold,
