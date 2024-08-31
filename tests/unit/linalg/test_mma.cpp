@@ -14,16 +14,16 @@
 
 using namespace mfem;
 
-double obj0(mfem::Vector& x)
+real_t obj0(mfem::Vector& x)
 {
     const int n=x.Size();
-    double rez=0.0;
+    real_t rez=0.0;
     for(int i=0;i<n;i++){
         rez=rez+x[i]*x[i];
     }
     
 #ifdef MFEM_USE_MPI
-    double grez;
+    real_t grez;
     MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     rez = grez;
 #endif
@@ -31,16 +31,16 @@ double obj0(mfem::Vector& x)
     return rez;
 }
 
-double dobj0(mfem::Vector& x, mfem::Vector& dx)
+real_t dobj0(mfem::Vector& x, mfem::Vector& dx)
 {
     const int n=x.Size();
-    double rez=0.0;
+    real_t rez=0.0;
     for(int i=0;i<n;i++){
         rez=rez+x[i]*x[i];
         dx[i]=2.0*x[i];
     }
 #ifdef MFEM_USE_MPI
-    double grez;
+    real_t grez;
     MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     rez = grez;
 #endif
@@ -48,17 +48,17 @@ double dobj0(mfem::Vector& x, mfem::Vector& dx)
     return rez;
 }
 
-double g0(mfem::Vector& x)
+real_t g0(mfem::Vector& x)
 {
     int n=x.Size();
-    double rez=0.0;
+    real_t rez=0.0;
     for(int i=0;i<n;i++){
         rez=rez+x[i];
     }
     
     int gn = n;
 #ifdef MFEM_USE_MPI
-   double grez;
+   real_t grez;
     MPI_Allreduce(&n, &gn, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     rez = grez;
@@ -68,7 +68,7 @@ double g0(mfem::Vector& x)
     return rez-2.0;
 }
 
-double dg0(mfem::Vector& x, mfem::Vector& dx)
+real_t dg0(mfem::Vector& x, mfem::Vector& dx)
 {
     const int n=x.Size();
 
@@ -77,14 +77,14 @@ double dg0(mfem::Vector& x, mfem::Vector& dx)
     MPI_Allreduce(&n, &gn, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
-    double rez=0.0;
+    real_t rez=0.0;
     for(int i=0;i<n;i++){
         rez=rez+x[i];
         dx[i]=1.0/gn;
     }
 
 #ifdef MFEM_USE_MPI
-    double grez;
+    real_t grez;
     MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     rez = grez;
 #endif
@@ -121,14 +121,14 @@ TEST_CASE("MMA Test", "[MMA]")
     mmaa = new mfem::MMAOpt(num_var,1,x);
 #endif
 
-   double a[4]={0.0,0.0,0.0,0.0};
-   double c[4]={1000.0,1000.0,1000.0,1000.0};
-   double d[4]={0.0,0.0,0.0,0.0};
+   real_t a[4]={0.0,0.0,0.0,0.0};
+   real_t c[4]={1000.0,1000.0,1000.0,1000.0};
+   real_t d[4]={0.0,0.0,0.0,0.0};
 
    mfem::Vector g(1); g=-1.0;
    mfem::Vector dg(num_var); dg=0.0;
 
-   double o;
+   real_t o;
    for(int it=0;it<30;it++){
       o=dobj0(x,dx);
       g[0]=dg0(x,dg);
@@ -184,14 +184,14 @@ TEST_CASE("MMA Test serial", "[MMA]")
     mmaa = new mfem::MMAOpt(num_var,1,x);
 #endif
 
-   double a[4]={0.0,0.0,0.0,0.0};
-   double c[4]={1000.0,1000.0,1000.0,1000.0};
-   double d[4]={0.0,0.0,0.0,0.0};
+   real_t a[4]={0.0,0.0,0.0,0.0};
+   real_t c[4]={1000.0,1000.0,1000.0,1000.0};
+   real_t d[4]={0.0,0.0,0.0,0.0};
 
    mfem::Vector g(1); g=-1.0;
    mfem::Vector dg(num_var); dg=0.0;
 
-   double o;
+   real_t o;
    for(int it=0;it<30;it++){
       o=dobj0(x,dx);
       g[0]=dg0(x,dg);

@@ -13,6 +13,7 @@
 #define MFEM_MMA
 
 #include <iostream>
+#include "../config/config.hpp"
 #include "vector.hpp"
 
 #ifdef MFEM_USE_MPI
@@ -29,14 +30,14 @@ public:
     /// nVar - number of design parameters;
     /// nCon - number of constraints;
     /// xval[nVar] - initial parameter values
-    MMA(int nVar, int nCon, double *xval);
+    MMA(int nVar, int nCon, real_t *xval);
 
 #ifdef MFEM_USE_MPI
     /// Parallel constructor:
     /// nVar - number of design parameters;
     /// nCon - number of constraints;
     /// xval[nVar] - initial parameter values
-    MMA(MPI_Comm comm_, int nVar, int nCon, double *xval);
+    MMA(MPI_Comm comm_, int nVar, int nCon, real_t *xval);
 #endif
 
     /// Destructor
@@ -51,49 +52,49 @@ public:
     /// xxmax[nVar] - upper bounds
     /// xval[nVar] - (input: current optimization parameters)
     /// xval[nVar] - (output: updated optimization parameters)
-    void Update(int iter, const double* dfdx, const double* gx,
-                const double* dgdx,
-                const double* xxmin,const double* xxmax,
-                double* xval);
+    void Update(int iter, const real_t* dfdx, const real_t* gx,
+                const real_t* dgdx,
+                const real_t* xxmin,const real_t* xxmax,
+                real_t* xval);
 
 
     /// Dump the internal state into a file
     /// xval[nVar] - current optimization parameters
     /// iter - current interation
     /// fname, fpath - file name and file path
-    void WriteState(double* xval, int iter,
+    void WriteState(real_t* xval, int iter,
                    std::string fname,
                    std::string fpath = "./");
 
     /// Load the internal state
-    void LoadState(double* xval, int iter,
+    void LoadState(real_t* xval, int iter,
                    std::string fname,
                    std::string fpath = "./");
 
 protected:
     // Local vectors
-    double *a, *b, *c, *d;
-    double a0, machineEpsilon, epsimin;
-    double z, zet;
+    real_t *a, *b, *c, *d;
+    real_t a0, machineEpsilon, epsimin;
+    real_t z, zet;
     int nCon, nVar;
 
     // Global: Asymptotes, bounds, objective approx., constraint approx.
-    double *low, *upp;
-    double *x, *y, *xsi, *eta, *lam, *mu, *s;
+    real_t *low, *upp;
+    real_t *x, *y, *xsi, *eta, *lam, *mu, *s;
 
 
 private:
 
     // MMA-specific
-    double asyinit, asyincr, asydecr;
-    double xmamieps, lowmin, lowmax, uppmin, uppmax, zz;
-    double *factor;
+    real_t asyinit, asyincr, asydecr;
+    real_t xmamieps, lowmin, lowmax, uppmin, uppmax, zz;
+    real_t *factor;
 
     /// values from the previous two iterations
-    double *xo1, *xo2;
+    real_t *xo1, *xo2;
 
     /// KKT norm
-    double kktnorm;
+    real_t kktnorm;
 
     /// intialization state
     bool isInitialized = false;
@@ -109,7 +110,7 @@ private:
     void FreeData();
 
     /// Initialize data
-    void  InitData(double *xval);
+    void  InitData(real_t *xval);
 
     /// Subproblem base class
     class MMASubBase
@@ -123,12 +124,12 @@ private:
 
         /// Update the optimization parameters
         virtual
-        void Update(const double* dfdx,
-                    const double* gx,
-                    const double* dgdx,
-                    const double* xmin,
-                    const double* xmax,
-                    const double* xval)=0;
+        void Update(const real_t* dfdx,
+                    const real_t* gx,
+                    const real_t* dgdx,
+                    const real_t* xmin,
+                    const real_t* xmax,
+                    const real_t* xval)=0;
 
     protected:
         MMA* mma_ptr;
@@ -161,33 +162,33 @@ private:
 
         /// Update the optimization parameters
         virtual
-        void Update(const double* dfdx,
-                    const double* gx,
-                    const double* dgdx,
-                    const double* xmin,
-                    const double* xmax,
-                    const double* xval);
+        void Update(const real_t* dfdx,
+                    const real_t* gx,
+                    const real_t* dgdx,
+                    const real_t* xmin,
+                    const real_t* xmax,
+                    const real_t* xval);
 
     private:
         int ittt, itto, itera, nVar_global;
 
-        double epsi, rez, rezet, delz, dz, dzet, azz, stmxx, stmalfa, stmbeta,
+        real_t epsi, rez, rezet, delz, dz, dzet, azz, stmxx, stmalfa, stmbeta,
                sum, stminv, steg, zold, zetold,
                residunorm, residumax, resinew, raa0, albefa, move, xmamieps;
 
-        double *sum1, *ux1, *xl1, *plam, *qlam, *gvec, *residu, *GG, *delx, *dely, *dellam,
+        real_t *sum1, *ux1, *xl1, *plam, *qlam, *gvec, *residu, *GG, *delx, *dely, *dellam,
                *dellamyi, *diagx, *diagy, *diaglam, *diaglamyi, *bb, *bb1, *Alam, *AA, *AA1,
                *dlam, *dx, *dy, *dxsi, *deta, *dmu, *Axx, *axz, *ds, *xx, *dxx, *stepxx, *stepalfa, *stepbeta, step, *xold, *yold,
                *lamold, *xsiold, *etaold, *muold, *sold, *p0, *q0, *P, *Q, *alfa, *beta, *xmami, *b;
 
         // parallel helper variables
-        double global_max = 0.0;
-        double global_norm = 0.0;
-        double stmxx_global = 0.0;
-        double stmalfa_global = 0.0;
-        double stmbeta_global = 0.0;
+        real_t global_max = 0.0;
+        real_t global_norm = 0.0;
+        real_t stmxx_global = 0.0;
+        real_t stmalfa_global = 0.0;
+        real_t stmbeta_global = 0.0;
 
-        double *b_local, *gvec_local, *Alam_local, *sum_local, *sum_global;
+        real_t *b_local, *gvec_local, *Alam_local, *sum_local, *sum_global;
 
         /// Allocate the memory for the subproblem
         void AllocSubData(int nVar, int nCon);

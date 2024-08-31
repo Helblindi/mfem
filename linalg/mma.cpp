@@ -15,14 +15,14 @@
 #include <math.h>
 
 #ifdef MFEM_USE_LAPACK
-extern "C" void dgesv_(int* nLAP, int* nrhs, double* AA, int* lda, int* ipiv,
-                       double* bb, int* ldb, int* info);
+extern "C" void dgesv_(int* nLAP, int* nrhs, mfem::real_t* AA, int* lda, int* ipiv,
+                       mfem::real_t* bb, int* ldb, int* info);
 #endif
 
 namespace mfem
 {
 
-void solveLU(int nCon, double* AA1, double* bb1, double* dlam, double &dz) {
+void solveLU(int nCon, real_t* AA1, real_t* bb1, real_t* dlam, real_t &dz) {
     // Solve linear system with LU decomposition ifndef LAPACK
     //int nVar = 10;
     int nLAP = nCon + 1;
@@ -30,11 +30,11 @@ void solveLU(int nCon, double* AA1, double* bb1, double* dlam, double &dz) {
     int* ipiv = new int[nLAP];
 
     // Convert AA1 to matrix A and bb1 to vector B
-    double** A = new double*[nLAP];
+    real_t** A = new real_t*[nLAP];
     for (int i = 0; i < nLAP; ++i) {
-    A[i] = new double[nLAP];
+    A[i] = new real_t[nLAP];
     }
-    double* B = new double[nLAP];
+    real_t* B = new real_t[nLAP];
     for (int i = 0; i < nLAP; ++i) {
         for (int j = 0; j < nLAP; ++j) {
             A[i][j] = AA1[j * nLAP + i];
@@ -43,11 +43,11 @@ void solveLU(int nCon, double* AA1, double* bb1, double* dlam, double &dz) {
     }
 
     // Perform LU decomposition
-    double** L = new double*[nLAP];
-    double** U = new double*[nLAP];
+    real_t** L = new real_t*[nLAP];
+    real_t** U = new real_t*[nLAP];
     for (int i = 0; i < nLAP; ++i) {
-    L[i] = new double[nLAP];
-    U[i] = new double[nLAP];
+    L[i] = new real_t[nLAP];
+    U[i] = new real_t[nLAP];
     for (int j = 0; j < nLAP; ++j) {
             L[i][j] = 0.0;
             U[i][j] = 0.0;
@@ -56,7 +56,7 @@ void solveLU(int nCon, double* AA1, double* bb1, double* dlam, double &dz) {
 
     for (int i = 0; i < nLAP; ++i) {
     for (int k = i; k < nLAP; ++k) {
-            double sum = 0.0;
+            real_t sum = 0.0;
             for (int j = 0; j < i; ++j)
                 sum += (L[i][j] * U[j][k]);
             U[i][k] = A[i][k] - sum;
@@ -65,7 +65,7 @@ void solveLU(int nCon, double* AA1, double* bb1, double* dlam, double &dz) {
             if (i == k)
                 L[i][i] = 1.0;
             else {
-                double sum = 0.0;
+                real_t sum = 0.0;
                 for (int j = 0; j < i; ++j)
                 sum += (L[k][j] * U[j][i]);
                 L[k][i] = (A[k][i] - sum) / U[i][i];
@@ -93,18 +93,18 @@ void solveLU(int nCon, double* AA1, double* bb1, double* dlam, double &dz) {
     }
 
     // Forward substitution to solve L * Y = B
-    double* Y = new double[nLAP];
+    real_t* Y = new real_t[nLAP];
     for (int i = 0; i < nLAP; ++i) {
-    double sum = 0.0;
+    real_t sum = 0.0;
     for (int j = 0; j < i; ++j)
             sum += L[i][j] * Y[j];
     Y[i] = (B[i] - sum) / L[i][i];
     }
 
     // Backward substitution to solve U * X = Y
-    double* X = new double[nLAP];
+    real_t* X = new real_t[nLAP];
     for (int i = nLAP - 1; i >= 0; --i) {
-    double sum = 0.0;
+    real_t sum = 0.0;
     for (int j = i + 1; j < nLAP; ++j)
             sum += U[i][j] * X[j];
     X[i] = (Y[i] - sum) / U[i][i];
@@ -140,62 +140,62 @@ void MMA::MMASubParallel::AllocSubData(int nVar, int nCon)
     move = 0.5;
     albefa = 0.1;
     xmamieps = 1e-5;
-    ux1 = new double[nVar]; //ini
-    xl1 = new double[nVar]; //ini
-    plam = new double[nVar]; //ini
-    qlam = new double[nVar]; //ini
-    gvec = new double[nCon]; //ini
-    residu = new double[3 * nVar + 4 * nCon + 2]; //ini
-    GG = new double[nVar * nCon]; //ini
-    delx = new double[nVar]; //init
-    dely = new double[nCon]; //ini
-    dellam = new double[nCon]; //ini
-    dellamyi = new double[nCon];
-    diagx = new double[nVar];//ini
-    diagy = new double[nCon];//ini
-    diaglamyi = new double[nCon]; //ini
-    bb = new double[nVar + 1];
-    bb1 = new double[nCon + 1];//ini
-    Alam = new double[nCon * nCon];//ini
-    AA = new double[(nVar + 1) * (nVar + 1)];
-    AA1 = new double[(nCon + 1) * (nCon + 1)];//ini
-    dlam = new double[nCon]; //ini
-    dx = new double[nVar]; //ini
-    dy = new double[nCon]; //ini
-    dxsi = new double[nVar]; //ini
-    deta = new double[nVar]; //ini
-    dmu = new double[nCon]; //ini
-    Axx = new double[nVar * nCon]; //ini
-    axz = new double[nVar]; //ini
-    ds = new double[nCon]; //ini
-    xx = new double[4 * nCon + 2 * nVar + 2]; //ini
-    dxx = new double[4 * nCon + 2 * nVar + 2]; //ini
-    stepxx = new double[4 * nCon + 2 * nVar + 2]; //ini
+    ux1 = new real_t[nVar]; //ini
+    xl1 = new real_t[nVar]; //ini
+    plam = new real_t[nVar]; //ini
+    qlam = new real_t[nVar]; //ini
+    gvec = new real_t[nCon]; //ini
+    residu = new real_t[3 * nVar + 4 * nCon + 2]; //ini
+    GG = new real_t[nVar * nCon]; //ini
+    delx = new real_t[nVar]; //init
+    dely = new real_t[nCon]; //ini
+    dellam = new real_t[nCon]; //ini
+    dellamyi = new real_t[nCon];
+    diagx = new real_t[nVar];//ini
+    diagy = new real_t[nCon];//ini
+    diaglamyi = new real_t[nCon]; //ini
+    bb = new real_t[nVar + 1];
+    bb1 = new real_t[nCon + 1];//ini
+    Alam = new real_t[nCon * nCon];//ini
+    AA = new real_t[(nVar + 1) * (nVar + 1)];
+    AA1 = new real_t[(nCon + 1) * (nCon + 1)];//ini
+    dlam = new real_t[nCon]; //ini
+    dx = new real_t[nVar]; //ini
+    dy = new real_t[nCon]; //ini
+    dxsi = new real_t[nVar]; //ini
+    deta = new real_t[nVar]; //ini
+    dmu = new real_t[nCon]; //ini
+    Axx = new real_t[nVar * nCon]; //ini
+    axz = new real_t[nVar]; //ini
+    ds = new real_t[nCon]; //ini
+    xx = new real_t[4 * nCon + 2 * nVar + 2]; //ini
+    dxx = new real_t[4 * nCon + 2 * nVar + 2]; //ini
+    stepxx = new real_t[4 * nCon + 2 * nVar + 2]; //ini
     sum = 0;
-    sum1 = new double[nVar];
-    stepalfa = new double[nVar]; //ini
-    stepbeta = new double[nVar]; //ini
-    xold = new double[nVar]; //ini
-    yold = new double[nCon]; //ini
-    lamold = new double[nCon];//ini
-    xsiold = new double[nVar];//ini
-    etaold = new double[nVar];//ini
-    muold = new double[nCon]; //ini
-    sold = new double[nCon]; //ini
-    q0 = new double[nVar]; //ini
-    p0 = new double[nVar]; //ini
-    P = new double[nCon * nVar]; //ini
-    Q = new double[nCon * nVar]; //ini
-    alfa = new double[nVar]; //ini
-    beta = new double[nVar]; //ini
-    xmami = new double[nVar];
-    b = new double[nCon]; //ini
+    sum1 = new real_t[nVar];
+    stepalfa = new real_t[nVar]; //ini
+    stepbeta = new real_t[nVar]; //ini
+    xold = new real_t[nVar]; //ini
+    yold = new real_t[nCon]; //ini
+    lamold = new real_t[nCon];//ini
+    xsiold = new real_t[nVar];//ini
+    etaold = new real_t[nVar];//ini
+    muold = new real_t[nCon]; //ini
+    sold = new real_t[nCon]; //ini
+    q0 = new real_t[nVar]; //ini
+    p0 = new real_t[nVar]; //ini
+    P = new real_t[nCon * nVar]; //ini
+    Q = new real_t[nCon * nVar]; //ini
+    alfa = new real_t[nVar]; //ini
+    beta = new real_t[nVar]; //ini
+    xmami = new real_t[nVar];
+    b = new real_t[nCon]; //ini
 
-    b_local = new double[nCon];
-    gvec_local = new double[nCon];
-    Alam_local = new double[nCon * nCon];
-    sum_local = new double[nCon];
-    sum_global = new double[nCon];
+    b_local = new real_t[nCon];
+    gvec_local = new real_t[nCon];
+    Alam_local = new real_t[nCon * nCon];
+    sum_local = new real_t[nCon];
+    sum_global = new real_t[nCon];
 
 
     for(int i=0; i<(3 * nVar + 4 * nCon + 2);i++){
@@ -263,12 +263,12 @@ void MMA::MMASubParallel::FreeSubData()
 
 }
 
-void MMA::MMASubParallel::Update(const double* dfdx,
-                                 const double* gx,
-                                 const double* dgdx,
-                                 const double* xmin,
-                                 const double* xmax,
-                                 const double* xval)
+void MMA::MMASubParallel::Update(const real_t* dfdx,
+                                 const real_t* gx,
+                                 const real_t* dgdx,
+                                 const real_t* xmin,
+                                 const real_t* xmax,
+                                 const real_t* xval)
 {
     MMA* mma = this->mma_ptr;
 
@@ -954,7 +954,7 @@ void MMA::MMASubParallel::Update(const double* dfdx,
 
 }
 
-void MMA::InitData(double *xval)
+void MMA::InitData(real_t *xval)
 {
 
     for (int i = 0; i < nVar; i++)
@@ -976,7 +976,7 @@ void MMA::InitData(double *xval)
 }
 
 /// Serial MMA
-MMA::MMA(int nVar, int nCon, double *xval)
+MMA::MMA(int nVar, int nCon, real_t *xval)
 {
 #ifdef MFEM_USE_MPI
    comm=MPI_COMM_SELF;
@@ -990,7 +990,7 @@ MMA::MMA(int nVar, int nCon, double *xval)
 }
 
 #ifdef MFEM_USE_MPI
-MMA::MMA(MPI_Comm comm_, int nVar, int nCon, double *xval)
+MMA::MMA(MPI_Comm comm_, int nVar, int nCon, real_t *xval)
 {
    comm=comm_;
 
@@ -1014,22 +1014,22 @@ void MMA::AllocData(int nVariables,int nConstr)
     nVar = nVariables;
     nCon = nConstr;
 
-    x= new double[nVar]; //ini
-    xo1 = new double[nVar]; //ini
-    xo2 = new double[nVar]; //ini
+    x= new real_t[nVar]; //ini
+    xo1 = new real_t[nVar]; //ini
+    xo2 = new real_t[nVar]; //ini
 
-    y = new double[nCon]; //ini
-    c = new double[nCon]; //ini
-    d = new double[nCon]; //ini
-    a = new double[nCon]; //ini
+    y = new real_t[nCon]; //ini
+    c = new real_t[nCon]; //ini
+    d = new real_t[nCon]; //ini
+    a = new real_t[nCon]; //ini
 
-    lam = new double[nCon]; //ini
+    lam = new real_t[nCon]; //ini
 
-    xsi = new double[nVar];//ini
-    eta = new double[nVar];//ini
+    xsi = new real_t[nVar];//ini
+    eta = new real_t[nVar];//ini
 
-    mu = new double[nCon]; //ini
-    s = new double[nCon]; //ini
+    mu = new real_t[nCon]; //ini
+    s = new real_t[nCon]; //ini
 
     z = zet = 1.0;
     kktnorm = 10;
@@ -1041,9 +1041,9 @@ void MMA::AllocData(int nVariables,int nConstr)
     asyinit = 0.5;
     asyincr = 1.1;
     asydecr = 0.7;
-    low = new double[nVar]; //ini
-    upp = new double[nVar]; //ini
-    factor = new double[nVar]; //ini
+    low = new real_t[nVar]; //ini
+    upp = new real_t[nVar]; //ini
+    factor = new real_t[nVar]; //ini
     lowmin = lowmax = uppmin = uppmax = zz = 0.0;
 
 }
@@ -1074,10 +1074,10 @@ void MMA::FreeData()
 
 }
 
-void MMA::Update(int iter, const double* dfdx,
-                 const double* gx,const double* dgdx,
-                 const double* xmin, const double* xmax,
-                 double* xval)
+void MMA::Update(int iter, const real_t* dfdx,
+                 const real_t* gx,const real_t* dgdx,
+                 const real_t* xmin, const real_t* xmax,
+                 real_t* xval)
 {
     // Calculation of the asymptotes low and upp
     if (iter < 3)
