@@ -11,18 +11,11 @@
 
 list(APPEND SEQMTOP_COMMON_SOURCES
 	paramnonlinearform.cpp
-        mtop_integrators.cpp
-	DiffusionSolver.cpp
-	mtop_MMA.cpp
-	MMA.cpp
-	)
+    mtop_integrators.cpp	)
 
 list(APPEND SEQMTOP_COMMON_HEADERS
 	paramnonlinearform.hpp
-        mtop_integrators.hpp
-	DiffusionSolver.hpp
-	mtop_MMA.hpp
-	MMA.hpp)
+    mtop_integrators.hpp)
 
 convert_filenames_to_full_paths(SEQMTOP_COMMON_SOURCES)
 convert_filenames_to_full_paths(SEQMTOP_COMMON_HEADERS)
@@ -36,30 +29,13 @@ add_mfem_miniapp(seqheat
 	${SEQMTOP_COMMON_FILES}
 	LIBRARIES mfem)
 
-add_mfem_miniapp(seqmma
-        MAIN seqmma.cpp
-        ${SEQMTOP_COMMON_FILES}
-        LIBRARIES mfem)
-
-
-add_mfem_miniapp(MMA-Benchmark
-	MAIN MMA_ParallelBenchmark.cpp
-	mtop_MMA.cpp
-	EXTRA_HEADERS mtop_MMA.hpp
-	LIBRARIES mfem)
-
 if(MFEM_USE_MPI)
 
 list(APPEND PARMTOP_COMMON_SOURCES
-	pparamnonlinearform.cpp
-	mtop_MMA.cpp
-	DiffusionSolver.cpp
-	)
+	pparamnonlinearform.cpp	)
+
 list(APPEND PARMTOP_COMMON_HEADERS
-	pparamnonlinearform.hpp
-	mtop_MMA.hpp
-	DiffusionSolver.hpp
-	)
+	pparamnonlinearform.hpp	)
 
 convert_filenames_to_full_paths(PARMTOP_COMMON_SOURCES)
 convert_filenames_to_full_paths(PARMTOP_COMMON_HEADERS)
@@ -74,16 +50,6 @@ set(PARMTOP_COMMON_FILES
 add_mfem_miniapp(parheat
      MAIN parheat.cpp
      ${PARMTOP_COMMON_FILES}
-     LIBRARIES mfem)
-
-add_mfem_miniapp(MMA_Benchmark
-     MAIN MMA_ParallelBenchmark.cpp
-	 ${PARMTOP_COMMON_FILES}
-     LIBRARIES mfem)
-
-add_mfem_miniapp(ThermalComplianceOpt
-     MAIN ThermalComplianceOpt.cpp
-	 ${PARMTOP_COMMON_FILES}
      LIBRARIES mfem)
 
 endif ()
