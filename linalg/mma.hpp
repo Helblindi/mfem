@@ -238,6 +238,10 @@ public:
         /// Destructor
     ~MMAOpt(){
         delete opt;
+
+#ifdef MFEM_USE_MPI
+    MPI_Comm_free(&new_comm);
+#endif
     }
 
     /// Design update

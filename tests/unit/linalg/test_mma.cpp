@@ -113,12 +113,12 @@ TEST_CASE("MMA Test", "[MMA]")
    mfem::Vector xmax(num_var); xmax=2.0;
    x=xmin; x+=0.5;
 
-   mfem::MMAOpt* mmaa = nullptr;
+   mfem::MMAOpt* mma = nullptr;
 
 #ifdef MFEM_USE_MPI
-   mmaa = new mfem::MMAOpt(MPI_COMM_WORLD,num_var,1,x);
+   mma = new mfem::MMAOpt(MPI_COMM_WORLD,num_var,1,x);
 #else
-    mmaa = new mfem::MMAOpt(num_var,1,x);
+    mma = new mfem::MMAOpt(num_var,1,x);
 #endif
 
    real_t a[4]={0.0,0.0,0.0,0.0};
@@ -144,7 +144,7 @@ TEST_CASE("MMA Test", "[MMA]")
       }
       std::cout<<std::endl;
 
-      mmaa->Update(it,dx,g,dg,xmin,xmax,x);
+      mma->Update(it,dx,g,dg,xmin,xmax,x);
       std::cout<<std::endl;
     }
 
@@ -156,70 +156,7 @@ TEST_CASE("MMA Test", "[MMA]")
    o=obj0(x);
    std::cout<<"Final o="<<o<<std::endl;
 
-   delete mmaa;
-
-   REQUIRE( std::fabs(o - 0.0005790847638021212) < 1e-12 );
-}
-
-TEST_CASE("MMA Test serial", "[MMA]")
-{
-    int world_size = 1;
-#ifdef MFEM_USE_MPI
-   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-#endif
-
-   int num_var=12 / world_size;
-
-   mfem::Vector x(num_var);
-   mfem::Vector dx(num_var);
-   mfem::Vector xmin(num_var); xmin=-1.0;
-   mfem::Vector xmax(num_var); xmax=2.0;
-   x=xmin; x+=0.5;
-
-   mfem::MMAOpt* mmaa = nullptr;
-
-#ifdef MFEM_USE_MPI
-   mmaa = new mfem::MMAOpt(MPI_COMM_WORLD,num_var,1,x);
-#else
-    mmaa = new mfem::MMAOpt(num_var,1,x);
-#endif
-
-   real_t a[4]={0.0,0.0,0.0,0.0};
-   real_t c[4]={1000.0,1000.0,1000.0,1000.0};
-   real_t d[4]={0.0,0.0,0.0,0.0};
-
-   mfem::Vector g(1); g=-1.0;
-   mfem::Vector dg(num_var); dg=0.0;
-
-   real_t o;
-   for(int it=0;it<30;it++){
-      o=dobj0(x,dx);
-      g[0]=dg0(x,dg);
-
-      std::cout<<"it="<<it<<" o="<<o<<" g="<<g[0]<<std::endl;
-
-      for(int i=0;i<num_var;i++){
-         std::cout<<" "<<x[i];
-      }
-      std::cout<<std::endl;
-      for(int i=0;i<num_var;i++){
-         std::cout<<" "<<dx[i];
-      }
-      std::cout<<std::endl;
-
-      mmaa->Update(it,dx,g,dg,xmin,xmax,x);
-      std::cout<<std::endl;
-    }
-
-   for(int i=0;i<num_var;i++){
-      std::cout<<" "<<x[i];
-   }
-   std::cout<<std::endl;
-
-   o=obj0(x);
-   std::cout<<"Final o="<<o<<std::endl;
-
-   delete mmaa;
+   delete mma;
 
    REQUIRE( std::fabs(o - 0.0005790847638021212) < 1e-12 );
 }
