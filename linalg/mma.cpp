@@ -67,18 +67,24 @@ void solveLU(int nCon, real_t* AA1, real_t* bb1)
       {
          real_t sum = 0.0;
          for (int j = 0; j < i; ++j)
+         {
             sum += (L[i][j] * U[j][k]);
+         }
          U[i][k] = A[i][k] - sum;
       }
       for (int k = i; k < nLAP; ++k)
       {
          if (i == k)
+         {
             L[i][i] = 1.0;
+         }
          else
          {
             real_t sum = 0.0;
             for (int j = 0; j < i; ++j)
+            {
                sum += (L[k][j] * U[j][i]);
+            }
             L[k][i] = (A[k][i] - sum) / U[i][i];
          }
       }
@@ -112,7 +118,9 @@ void solveLU(int nCon, real_t* AA1, real_t* bb1)
    {
       real_t sum = 0.0;
       for (int j = 0; j < i; ++j)
+      {
          sum += L[i][j] * Y[j];
+      }
       Y[i] = (B[i] - sum) / L[i][i];
    }
 
@@ -122,7 +130,9 @@ void solveLU(int nCon, real_t* AA1, real_t* bb1)
    {
       real_t sum = 0.0;
       for (int j = i + 1; j < nLAP; ++j)
+      {
          sum += U[i][j] * X[j];
+      }
       X[i] = (Y[i] - sum) / U[i][i];
    }
 
@@ -338,9 +348,9 @@ void MMA::MMASubParallel::Update(const real_t* dfdx,
          xl1[i] = mma->machineEpsilon;
       }
       p0[i] = ( std::max(dfdx[i], 0.0) + 0.001 * (std::max(dfdx[i],
-                0.0) + std::max(-dfdx[i], 0.0)) + raa0 / xmami[i]) * ux1[i] * ux1[i];
+                                                           0.0) + std::max(-dfdx[i], 0.0)) + raa0 / xmami[i]) * ux1[i] * ux1[i];
       q0[i] = ( std::max(-dfdx[i], 0.0) + 0.001 * (std::max(dfdx[i],
-                0.0) + std::max(-dfdx[i], 0.0)) + raa0 / xmami[i]) * xl1[i] * xl1[i];
+                                                            0.0) + std::max(-dfdx[i], 0.0)) + raa0 / xmami[i]) * xl1[i] * xl1[i];
    }
 
    // P = max(dgdx,0)
@@ -355,12 +365,12 @@ void MMA::MMASubParallel::Update(const real_t* dfdx,
          // Q = Q * spdiags(xl2,0,n,n)
          P[i * nVar + j] = (std::max(dgdx[i * nVar + j],
                                      0.0) + 0.001 * (std::max(dgdx[i * nVar + j],
-                                        0.0) + std::max(-1*dgdx[i * nVar + j],
-                                           0.0)) + raa0 / xmami[j]) * ux1[j] * ux1[j];
+                                                              0.0) + std::max(-1*dgdx[i * nVar + j],
+                                                                              0.0)) + raa0 / xmami[j]) * ux1[j] * ux1[j];
          Q[i * nVar + j] = (std::max(-1*dgdx[i * nVar + j],
                                      0.0) + 0.001 * (std::max(dgdx[i * nVar + j],
-                                        0.0) + std::max(-1*dgdx[i * nVar + j],
-                                           0.0)) + raa0 / xmami[j]) * xl1[j] * xl1[j];
+                                                              0.0) + std::max(-1*dgdx[i * nVar + j],
+                                                                              0.0)) + raa0 / xmami[j]) * xl1[j] * xl1[j];
          // b = P/ux1 + Q/xl1 - gx
          b_local[i] = b_local[i] + P[i * nVar + j] / ux1[j] + Q[i * nVar + j] / xl1[j];
       }
@@ -433,11 +443,11 @@ void MMA::MMASubParallel::Update(const real_t* dfdx,
             residu[nVar + nCon + 1 + nCon + i] = mma->xsi[i] * mma->machineEpsilon - epsi;
          }
          residu[nVar + nCon + 1 + nCon + nVar + i] = mma->eta[i] *
-            (beta[i] - mma->x[i]) - epsi; //reeta
+                                                     (beta[i] - mma->x[i]) - epsi; //reeta
          if (std::fabs(beta[i] - mma->x[i]) < mma->machineEpsilon)
          {
             residu[nVar + nCon + 1 + nCon + nVar + i] = mma->eta[i] * mma->machineEpsilon -
-               epsi;
+                                                        epsi;
          }
       }
       for (int i = 0; i < nCon; i++)
@@ -466,9 +476,9 @@ void MMA::MMASubParallel::Update(const real_t* dfdx,
             residu[nVar + nCon + 1 + i] = gvec[i] - mma->a[i] * mma->z - mma->y[i] +
                                           mma->s[i] - b[i]; //relam
             residu[nVar + nCon + 1 + nCon + 2 * nVar + i] = mma->mu[i] * mma->y[i] -
-               epsi; //remu
+                                                            epsi; //remu
             residu[nVar + nCon + 1 + 2 * nVar + 2 * nCon + 1 + i] = mma->lam[i] * mma->s[i]
-               - epsi; //res
+                                                                    - epsi; //res
          }
          residu[nVar + nCon + 1 + 2 * nVar + 2 * nCon] = mma->zet * mma->z - epsi;
       }
@@ -680,11 +690,11 @@ void MMA::MMASubParallel::Update(const real_t* dfdx,
                }
                else if (info > 0)
                {
-                  std::cerr << "Error: matrix is singular." << std::endl;
+                  mfem::err << "Error: matrix is singular." << std::endl;
                }
                else
                {
-                  std::cerr << "Error: Argument " << info << " has illegal value." << std::endl;
+                  mfem::err << "Error: Argument " << info << " has illegal value." << std::endl;
                }
 #else
                solveLU(nCon, AA1, bb1);
@@ -903,11 +913,11 @@ void MMA::MMASubParallel::Update(const real_t* dfdx,
                   residu[nVar + nCon + 1 + nCon + i] = mma->xsi[i] * mma->machineEpsilon - epsi;
                }
                residu[nVar + nCon + 1 + nCon + nVar + i] = mma->eta[i] *
-                  (beta[i] - mma->x[i]) - epsi; //reeta
+                                                           (beta[i] - mma->x[i]) - epsi; //reeta
                if (std::fabs(beta[i] - mma->x[i]) < mma->machineEpsilon)
                {
                   residu[nVar + nCon + 1 + nCon + nVar + i] = mma->eta[i] * mma->machineEpsilon -
-                     epsi;
+                                                              epsi;
                }
             }
             mma->z = zold + steg * dz;
@@ -941,12 +951,12 @@ void MMA::MMASubParallel::Update(const real_t* dfdx,
                   residu[nVar + nCon + 1 + i] = gvec[i] - mma->a[i] * mma->z - mma->y[i] +
                                                 mma->s[i] - b[i]; //relam
                   residu[nVar + nCon + 1 + nCon + 2 * nVar + i] = mma->mu[i] * mma->y[i] -
-                     epsi; //remu
+                                                                  epsi; //remu
                   residu[nVar + nCon + 1 + 2 * nVar + 2 * nCon + 1 + i] = mma->lam[i] * mma->s[i]
-                     - epsi; //res
+                                                                          - epsi; //res
                }
                residu[nVar + nCon + 1 + 2 * nVar + 2 * nCon] = mma->zet * mma->z -
-                  epsi; //rezet
+                                                               epsi; //rezet
             }
 
             //Get vector product and maximum absolute value
@@ -1164,14 +1174,14 @@ void MMA::Update(int iter, const real_t* dfdx,
 
    for (int i=0; i<nVar; i++)
    {
-      std::cout<<" "<<low[i];
+      mfem::out<<" "<<low[i];
    }
-   std::cout<<std::endl;
+   mfem::out<<std::endl;
    for (int i=0; i<nVar; i++)
    {
-      std::cout<<" "<<upp[i];
+      mfem::out<<" "<<upp[i];
    }
-   std::cout<<std::endl;
+   mfem::out<<std::endl;
 
    mSubProblem->Update(dfdx,gx,dgdx,xmin,xmax,xval);
    // Update design variables

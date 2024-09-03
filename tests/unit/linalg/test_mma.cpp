@@ -16,81 +16,85 @@ using namespace mfem;
 
 real_t obj0(mfem::Vector& x)
 {
-    const int n=x.Size();
-    real_t rez=0.0;
-    for(int i=0;i<n;i++){
-        rez=rez+x[i]*x[i];
-    }
-    
+   const int n=x.Size();
+   real_t rez=0.0;
+   for (int i=0; i<n; i++)
+   {
+      rez=rez+x[i]*x[i];
+   }
+
 #ifdef MFEM_USE_MPI
-    real_t grez;
-    MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    rez = grez;
+   real_t grez;
+   MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   rez = grez;
 #endif
 
-    return rez;
+   return rez;
 }
 
 real_t dobj0(mfem::Vector& x, mfem::Vector& dx)
 {
-    const int n=x.Size();
-    real_t rez=0.0;
-    for(int i=0;i<n;i++){
-        rez=rez+x[i]*x[i];
-        dx[i]=2.0*x[i];
-    }
+   const int n=x.Size();
+   real_t rez=0.0;
+   for (int i=0; i<n; i++)
+   {
+      rez=rez+x[i]*x[i];
+      dx[i]=2.0*x[i];
+   }
 #ifdef MFEM_USE_MPI
-    real_t grez;
-    MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    rez = grez;
+   real_t grez;
+   MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   rez = grez;
 #endif
 
-    return rez;
+   return rez;
 }
 
 real_t g0(mfem::Vector& x)
 {
-    int n=x.Size();
-    real_t rez=0.0;
-    for(int i=0;i<n;i++){
-        rez=rez+x[i];
-    }
-    
-    int gn = n;
+   int n=x.Size();
+   real_t rez=0.0;
+   for (int i=0; i<n; i++)
+   {
+      rez=rez+x[i];
+   }
+
+   int gn = n;
 #ifdef MFEM_USE_MPI
    real_t grez;
-    MPI_Allreduce(&n, &gn, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    rez = grez;
+   MPI_Allreduce(&n, &gn, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   rez = grez;
 #endif
 
-    rez=rez/gn;
-    return rez-2.0;
+   rez=rez/gn;
+   return rez-2.0;
 }
 
 real_t dg0(mfem::Vector& x, mfem::Vector& dx)
 {
-    const int n=x.Size();
+   const int n=x.Size();
 
-    int gn = n;
+   int gn = n;
 #ifdef MFEM_USE_MPI
-    MPI_Allreduce(&n, &gn, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(&n, &gn, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
-    real_t rez=0.0;
-    for(int i=0;i<n;i++){
-        rez=rez+x[i];
-        dx[i]=1.0/gn;
-    }
+   real_t rez=0.0;
+   for (int i=0; i<n; i++)
+   {
+      rez=rez+x[i];
+      dx[i]=1.0/gn;
+   }
 
 #ifdef MFEM_USE_MPI
-    real_t grez;
-    MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    rez = grez;
+   real_t grez;
+   MPI_Allreduce(&rez, &grez, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   rez = grez;
 #endif
 
-    rez=rez/gn;
-    return rez-1.0;
+   rez=rez/gn;
+   return rez-1.0;
 }
 
 #ifdef MFEM_USE_MPI
@@ -100,7 +104,7 @@ TEST_CASE("MMA Test", "[Parallel], [MMA]")
 TEST_CASE("MMA Test", "[MMA]")
 {
 #endif
-    int world_size = 1;
+   int world_size = 1;
 #ifdef MFEM_USE_MPI
    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 #endif
@@ -118,37 +122,41 @@ TEST_CASE("MMA Test", "[MMA]")
 #ifdef MFEM_USE_MPI
    mmaa = new mfem::MMAOpt(MPI_COMM_WORLD,num_var,1,x);
 #else
-    mmaa = new mfem::MMAOpt(num_var,1,x);
+   mmaa = new mfem::MMAOpt(num_var,1,x);
 #endif
 
-   real_t a[4]={0.0,0.0,0.0,0.0};
-   real_t c[4]={1000.0,1000.0,1000.0,1000.0};
-   real_t d[4]={0.0,0.0,0.0,0.0};
+   real_t a[4]= {0.0,0.0,0.0,0.0};
+   real_t c[4]= {1000.0,1000.0,1000.0,1000.0};
+   real_t d[4]= {0.0,0.0,0.0,0.0};
 
    mfem::Vector g(1); g=-1.0;
    mfem::Vector dg(num_var); dg=0.0;
 
    real_t o;
-   for(int it=0;it<30;it++){
+   for (int it=0; it<30; it++)
+   {
       o=dobj0(x,dx);
       g[0]=dg0(x,dg);
 
       std::cout<<"it="<<it<<" o="<<o<<" g="<<g[0]<<std::endl;
 
-      for(int i=0;i<num_var;i++){
+      for (int i=0; i<num_var; i++)
+      {
          std::cout<<" "<<x[i];
       }
       std::cout<<std::endl;
-      for(int i=0;i<num_var;i++){
+      for (int i=0; i<num_var; i++)
+      {
          std::cout<<" "<<dx[i];
       }
       std::cout<<std::endl;
 
       mmaa->Update(it,dx,g,dg,xmin,xmax,x);
       std::cout<<std::endl;
-    }
+   }
 
-   for(int i=0;i<num_var;i++){
+   for (int i=0; i<num_var; i++)
+   {
       std::cout<<" "<<x[i];
    }
    std::cout<<std::endl;
@@ -163,7 +171,7 @@ TEST_CASE("MMA Test", "[MMA]")
 
 TEST_CASE("MMA Test serial", "[MMA]")
 {
-    int world_size = 1;
+   int world_size = 1;
 #ifdef MFEM_USE_MPI
    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 #endif
@@ -181,37 +189,41 @@ TEST_CASE("MMA Test serial", "[MMA]")
 #ifdef MFEM_USE_MPI
    mmaa = new mfem::MMAOpt(MPI_COMM_WORLD,num_var,1,x);
 #else
-    mmaa = new mfem::MMAOpt(num_var,1,x);
+   mmaa = new mfem::MMAOpt(num_var,1,x);
 #endif
 
-   real_t a[4]={0.0,0.0,0.0,0.0};
-   real_t c[4]={1000.0,1000.0,1000.0,1000.0};
-   real_t d[4]={0.0,0.0,0.0,0.0};
+   real_t a[4]= {0.0,0.0,0.0,0.0};
+   real_t c[4]= {1000.0,1000.0,1000.0,1000.0};
+   real_t d[4]= {0.0,0.0,0.0,0.0};
 
    mfem::Vector g(1); g=-1.0;
    mfem::Vector dg(num_var); dg=0.0;
 
    real_t o;
-   for(int it=0;it<30;it++){
+   for (int it=0; it<30; it++)
+   {
       o=dobj0(x,dx);
       g[0]=dg0(x,dg);
 
       std::cout<<"it="<<it<<" o="<<o<<" g="<<g[0]<<std::endl;
 
-      for(int i=0;i<num_var;i++){
+      for (int i=0; i<num_var; i++)
+      {
          std::cout<<" "<<x[i];
       }
       std::cout<<std::endl;
-      for(int i=0;i<num_var;i++){
+      for (int i=0; i<num_var; i++)
+      {
          std::cout<<" "<<dx[i];
       }
       std::cout<<std::endl;
 
       mmaa->Update(it,dx,g,dg,xmin,xmax,x);
       std::cout<<std::endl;
-    }
+   }
 
-   for(int i=0;i<num_var;i++){
+   for (int i=0; i<num_var; i++)
+   {
       std::cout<<" "<<x[i];
    }
    std::cout<<std::endl;
