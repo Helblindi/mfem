@@ -103,6 +103,12 @@ macro(add_mfem_examples EXE_SRCS)
       ${MFEM_EXEC_PREREQUISITES_TARGET_NAME} ${EXE_PREREQUISITE})
 
     target_link_libraries(${EXE_NAME} mfem)
+
+    # TODO: Is there a way to link a coinhsl to a specific example?
+    if (MFEM_USE_COINHSL)
+      target_link_libraries(${EXE_NAME} ${COINHSL_LIBRARY})
+    endif()
+
   endforeach(SRC_FILE)
 endmacro()
 

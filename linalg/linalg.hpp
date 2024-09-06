@@ -43,6 +43,7 @@
 
 #ifdef MFEM_USE_HIOP
 #include "hiop.hpp"
+#include "hiop-sparse.hpp"
 #endif
 
 #ifdef MFEM_USE_GINKGO

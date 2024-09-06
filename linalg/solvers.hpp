@@ -838,6 +838,7 @@ class OptimizationProblem
 {
 #ifdef MFEM_USE_HIOP
    friend class HiopOptimizationProblem;
+   friend class HiopSparseOptimizationProblem;
 #endif
 
 private:
@@ -866,6 +867,20 @@ public:
    /// The result grad is expected to enter with the correct size.
    virtual void CalcObjectiveGrad(const Vector &x, Vector &grad) const
    { MFEM_ABORT("The objective gradient is not implemented."); }
+
+   /// The result hessian is expected to enter with the correct size.
+   /// The result hessian is also expected to be in compressed CSR format.
+   virtual Operator& CalcObjectiveHess(const Vector &x) const // TODO: Could wrap in mfem_use_hiop_sparse
+   { MFEM_ABORT("The objective Hessian is not implemented."); }
+
+   mutable Vector lambda; // TODO: Could wrap in mfem_use_hiop_sparse
+   virtual void SetLagrangeMultipliers(const Vector &_lambda) const // TODO: Could wrap in mfem_use_hiop_sparse
+   {
+      lambda.SetSize(GetNumConstraints());
+      for (int i = 0; i < GetNumConstraints(); i++) {
+         lambda[i] = _lambda[i];
+      }
+   }
 
    void SetEqualityConstraint(const Vector &c);
    void SetInequalityConstraint(const Vector &dl, const Vector &dh);

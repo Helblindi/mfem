@@ -117,6 +117,8 @@ endif()
 if (MFEM_USE_HIOP)
   list(APPEND SRCS hiop.cpp)
   list(APPEND HDRS hiop.hpp)
+  list(APPEND SRCS hiop-sparse.cpp)
+  list(APPEND HDRS hiop-sparse.hpp)
 endif()
 
 if (MFEM_USE_MKL_CPARDISO)

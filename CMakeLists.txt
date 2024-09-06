@@ -354,6 +354,15 @@ if (MFEM_USE_STRUMPACK)
   endif()
 endif()
 
+if (MFEM_USE_COINHSL)
+   set(MFEM_COINHSL_DIR "${PROJECT_SOURCE_DIR}/../coinhsl" CACHE PATH "Path to COINHSL directory")
+   find_library(COINHSL_LIBRARY NAMES coinhsl PATHS ${MFEM_COINHSL_DIR} PATH_SUFFIXES lib64 lib a)
+   if (COINHSL_LIBRARY)
+      message(STATUS "Found COINHSL: ${COINHSL_LIBRARY}")
+   endif()
+   enable_language(Fortran)
+endif()
+
 # GnuTLS
 if (MFEM_USE_GNUTLS)
   find_package(_GnuTLS REQUIRED)

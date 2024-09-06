@@ -201,6 +201,7 @@ endif()
 # Include the examples/hiop directory if HiOp is enabled
 if (MFEM_USE_HIOP)
   add_subdirectory(hiop)
+  add_subdirectory(hiop-sparse)
 endif()
 
 # Include the examples/petsc directory if PETSc is enabled.
