@@ -65,10 +65,10 @@ using namespace blocksolvers;
 
 // Exact solution, u and p, and r.h.s., f and g.
 void u_exact(const Vector & x, Vector & u);
-double p_exact(const Vector & x);
+real_t p_exact(const Vector & x);
 void f_exact(const Vector & x, Vector & f);
-double g_exact(const Vector & x);
-double natural_bc(const Vector & x);
+real_t g_exact(const Vector & x);
+real_t natural_bc(const Vector & x);
 
 /** Wrapper for assembling the discrete Darcy problem (ex5p)
                      [ M  B^T ] [u] = [f]
@@ -107,7 +107,7 @@ public:
    const Vector& GetEssentialBC() { return ess_data_; }
    const DFSData& GetDFSData() const { return dfs_spaces_.GetDFSData(); }
    void ShowError(const Vector &sol, bool verbose);
-   void VisualizeSolution(const Vector &sol, std::string tag);
+   void VisualizeSolution(const Vector &sol, std::string tag, int visport = 19916);
    ParBilinearForm* GetMform() const { return mVarf_; }
    ParMixedBilinearForm* GetBform() const { return bVarf_; }
 };
@@ -195,17 +195,18 @@ void DarcyProblem::ShowError(const Vector& sol, bool verbose)
    u_.Distribute(Vector(sol.GetData(), M_->NumRows()));
    p_.Distribute(Vector(sol.GetData()+M_->NumRows(), B_->NumRows()));
 
-   double err_u  = u_.ComputeL2Error(ucoeff_, irs_);
-   double norm_u = ComputeGlobalLpNorm(2, ucoeff_, mesh_, irs_);
-   double err_p  = p_.ComputeL2Error(pcoeff_, irs_);
-   double norm_p = ComputeGlobalLpNorm(2, pcoeff_, mesh_, irs_);
+   real_t err_u  = u_.ComputeL2Error(ucoeff_, irs_);
+   real_t norm_u = ComputeGlobalLpNorm(2, ucoeff_, mesh_, irs_);
+   real_t err_p  = p_.ComputeL2Error(pcoeff_, irs_);
+   real_t norm_p = ComputeGlobalLpNorm(2, pcoeff_, mesh_, irs_);
 
    if (!verbose) { return; }
    mfem::out << "|| u_h - u_ex || / || u_ex || = " << err_u / norm_u << "\n";
    mfem::out << "|| p_h - p_ex || / || p_ex || = " << err_p / norm_p << "\n";
 }
 
-void DarcyProblem::VisualizeSolution(const Vector& sol, string tag)
+void DarcyProblem::VisualizeSolution(const Vector& sol, string tag,
+                                     int visport)
 {
    int num_procs, myid;
    MPI_Comm_size(mesh_.GetComm(), &num_procs);
@@ -215,7 +216,6 @@ void DarcyProblem::VisualizeSolution(const Vector& sol, string tag)
    p_.Distribute(Vector(sol.GetData()+M_->NumRows(), B_->NumRows()));
 
    const char vishost[] = "localhost";
-   const int  visport   = 19916;
    socketstream u_sock(vishost, visport);
    u_sock << "parallel " << num_procs << " " << myid << "\n";
    u_sock.precision(8);
@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
 #ifdef HYPRE_USING_GPU
    mfem::out << "\nAs of mfem-4.3 and hypre-2.22.0 (July 2021) this miniapp\n"
              << "is NOT supported with the GPU version of hypre.\n\n";
-   return 242;
+   return MFEM_SKIP_RETURN_VALUE;
 #endif
 
    // Initialize MPI and HYPRE.
@@ -260,6 +260,7 @@ int main(int argc, char *argv[])
    bool visualization = false;
 
    DFSParameters param;
+   int visport = 19916;
    BPSParameters bps_param;
 
    OptionsParser args(argc, argv);
@@ -281,6 +282,7 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&visport, "-p", "--send-port", "Socket for GLVis.");
    args.Parse();
    if (Mpi::Root()) { args.ParseCheck(); }
 
@@ -357,7 +359,7 @@ int main(int argc, char *argv[])
    }
 
    // Setup various solvers for the discrete problem
-   std::map<const DarcySolver*, double> setup_time;
+   std::map<const DarcySolver*, real_t> setup_time;
    chrono.Restart();
    BDPMinresSolver bdp(M, B, param);
    setup_time[&bdp] = chrono.RealTime();
@@ -417,7 +419,7 @@ int main(int argc, char *argv[])
                    << "'.\nApproximation error is computed in this case!\n\n";
       }
 
-      if (visualization) { darcy.VisualizeSolution(sol, name); }
+      if (visualization) { darcy.VisualizeSolution(sol, name, visport); }
 
    }
 
@@ -426,9 +428,9 @@ int main(int argc, char *argv[])
 
 void u_exact(const Vector & x, Vector & u)
 {
-   double xi(x(0));
-   double yi(x(1));
-   double zi(x.Size() == 3 ? x(2) : 0.0);
+   real_t xi(x(0));
+   real_t yi(x(1));
+   real_t zi(x.Size() == 3 ? x(2) : 0.0);
 
    u(0) = - exp(xi)*sin(yi)*cos(zi);
    u(1) = - exp(xi)*cos(yi)*cos(zi);
@@ -438,11 +440,11 @@ void u_exact(const Vector & x, Vector & u)
    }
 }
 
-double p_exact(const Vector & x)
+real_t p_exact(const Vector & x)
 {
-   double xi(x(0));
-   double yi(x(1));
-   double zi(x.Size() == 3 ? x(2) : 0.0);
+   real_t xi(x(0));
+   real_t yi(x(1));
+   real_t zi(x.Size() == 3 ? x(2) : 0.0);
    return exp(xi)*sin(yi)*cos(zi);
 }
 
@@ -451,13 +453,13 @@ void f_exact(const Vector & x, Vector & f)
    f = 0.0;
 }
 
-double g_exact(const Vector & x)
+real_t g_exact(const Vector & x)
 {
    if (x.Size() == 3) { return -p_exact(x); }
    return 0;
 }
 
-double natural_bc(const Vector & x)
+real_t natural_bc(const Vector & x)
 {
    return (-p_exact(x));
 }
