@@ -15,6 +15,9 @@
 CMakeCache.txt
 CMakeFiles/
 
+# vscode files
+.vscode
+
 # Backup files
 *~
 
