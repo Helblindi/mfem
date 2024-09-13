@@ -116,26 +116,6 @@ bool HiopSparseOptimizationProblem::eval_cons(const size_type &n, const size_typ
                                         const double *x, bool new_x,
                                         double *cons)
 {
-   // std::cout << "HiopSparseOptimizationProblem::eval_cons\n";
-   // MFEM_ASSERT(n == ntdofs_glob, "Global input mismatch.");
-   // MFEM_ASSERT(m == m_total, "Constraint size mismatch.");
-   // MFEM_ASSERT(num_cons <= m, "num_cons should be at most m = " << m);
-
-   // if (num_cons == 0) { return true; }
-
-   // if (new_x) { constr_info_is_current = false; }
-   // Vector x_vec(ntdofs_loc);
-   // x_vec = x;
-   // problem.new_x = new_x;
-   // UpdateConstrValsGrads(x_vec);
-
-   // for (int c = 0; c < num_cons; c++)
-   // {
-   //    MFEM_ASSERT(idx_cons[c] < m_total, "Constraint index is out of bounds.");
-   //    cons[c] = constr_vals(idx_cons[c]);
-   // }
-
-   // return true;
    return false;
 }
 
@@ -145,7 +125,6 @@ bool HiopSparseOptimizationProblem::eval_cons(const size_type &n,
                                               bool new_x,
                                               double *cons)
 {
-   // std::cout << "HiopSparseOptimizationProblem::eval_cons\n";
    MFEM_ASSERT(n == ntdofs_glob, "Global input mismatch.");
    MFEM_ASSERT(m == m_total, "Constraint size mismatch.");
 
@@ -173,7 +152,6 @@ bool HiopSparseOptimizationProblem::eval_Jac_cons(const size_type &n,
                                             index_type *jJacS,
                                             double * MJacS)
 {
-   // std::cout << "HiopSparseOptimizationProblem::eval_Jac_cons 8 args\n";
    MFEM_ASSERT(n == ntdofs_glob, "Global input mismatch.");
    MFEM_ASSERT(m == m_total, "Constraint size mismatch.");
 
@@ -185,11 +163,34 @@ bool HiopSparseOptimizationProblem::eval_Jac_cons(const size_type &n,
    problem.new_x = new_x;
    UpdateConstrValsGrads(x_vec);
 
-   iJacS = constr_grads->GetI();
-   jJacS = constr_grads->GetJ();
-   MJacS = constr_grads->GetData();
+   if (iJacS != NULL && jJacS != NULL)
+   {
+      const int *I = constr_grads->GetI();
+      const int *J = constr_grads->GetJ();
 
-   // std::cout << "HiopSparseOptimizationProblem::eval_Jac_cons 8 args - DONE\n";
+      int count = 0;
+      for (int i = 0; i < m/*num_rows*/; i++)
+      {
+         for (int k = I[i]; k < I[i+1]; k++, count++)
+         {
+            iJacS[count] = i;
+            jJacS[count] = J[count];
+         }
+      }
+      assert(count == nnzHSS);
+   }
+
+   if (MJacS != NULL)
+   {
+      int last;
+
+      const auto data_ = constr_grads->GetData();
+      for (int i = 0; i < nnzJacS; i++)
+      {
+         MJacS[i] = data_[i];
+      }
+
+   }
    return true;
 }
 
@@ -261,15 +262,15 @@ bool HiopSparseOptimizationProblem::iterate_callback(int iter,
 
 void HiopSparseOptimizationProblem::UpdateConstrValsGrads(const Vector x)
 {
-   // std::cout << "HiopSparseOptimizationProblem::UpdateConstrValsGrads\n";
    if (constr_info_is_current) { return; }
+
+   cgIArr.SetSize(0, 0), cgJArr.SetSize(0,0), cgDataArr.SetSize(0,0.);
 
    // If needed (e.g. for CG spaces), communication should be handled by the
    // operators' Mult() and GetGradient() methods.
-
    Array<int> cols;
    Vector row(nnz_constr);
-   int cheight = 0;
+   int cheight = 0, lastc_row = 0;
    if (problem.GetC())
    {
       cheight = problem.GetC()->Height();
@@ -284,31 +285,28 @@ void HiopSparseOptimizationProblem::UpdateConstrValsGrads(const Vector x)
       MFEM_VERIFY(grad_C, "HiopSparse expects SparseMatrices as operator gradients.");
       MFEM_ASSERT(grad_C->Height() == cheight && grad_C->Width() == ntdofs_loc,
                   "Incorrect dimensions of the C constraint gradient.");
-      // const int *In = grad_C->GetI(), *Jn = grad_C->GetJ();
-      *constr_grads = *grad_C; // No inequality constraints so this works for now
-      
-      // for (int i = 0, k=0; i < cheight; i++)
-      // {
-      //    std::cout << "i: " << i << ", In[i]: " << In[i] << std::endl;
-      //    // grad_C->GetRow(i, cols, row);
-      //    // std::cout << "i: " << i << ", row: ";
-      //    // row.Print(std::cout);
-      //    // std::cout << "cols: ";
-      //    // cols.Print(std::cout);
-      //    // constr_grads->SetRow(i, cols, row);
-      //    for (int end = In[i+1]; k < end; k++)
-      //    {
-      //       int j = Jn[k];
-      //       std::cout << "sparse entry [i: " << i << ", j: " << j << "]: " << constr_grads->Elem(i,j) << std::endl;
-      //       // constr_grads->Elem(i, j) = grad_C->Elem(i, j);
-      //    }
-      // }
-   }
-   // MFEM_ABORT("Testing\n");
+      const int *In = grad_C->GetI(), *Jn = grad_C->GetJ();
+      const double *Datan = grad_C->GetData();
 
+      for (int i = 0, k=0; i < cheight; i++)
+      {
+         cgIArr.Append(In[i]);
+         for (int end = In[i+1]; k < end; k++)
+         {
+            int j = Jn[k];
+            cgJArr.Append(j);
+            cgDataArr.Append(Datan[k]);
+         }
+      }
+
+      lastc_row = In[cheight];
+      cgIArr.Append(lastc_row);
+   }
+
+   int dheight = 0;
    if (problem.GetD())
    {
-      const int dheight = problem.GetD()->Height();
+      dheight = problem.GetD()->Height();
 
       // Values of D.
       Vector vals_D(constr_vals.GetData() + cheight, dheight);
@@ -320,14 +318,23 @@ void HiopSparseOptimizationProblem::UpdateConstrValsGrads(const Vector x)
       MFEM_VERIFY(grad_D, "HiopSparse expects SparseMatrices as operator gradients.");
       MFEM_ASSERT(grad_D->Height() == dheight && grad_D->Width() == ntdofs_loc,
                   "Incorrect dimensions of the D constraint gradient.");
-
-      for (int i = 0; i < dheight; i++)
+      
+      const int *DI = grad_D->GetI(), *DJ = grad_D->GetJ();
+      const double *DData = grad_D->GetData();
+      
+      for (int i = 0, k=0; i < dheight; i++)
       {
-         grad_D->GetRow(i, cols, row);
-         constr_grads->SetRow(i+cheight, cols, row);
+         cgIArr.Append(DI[i+1]+lastc_row);
+         for (int end = DI[i+1]; k < end; k++)
+         {
+            int j = DJ[k];
+            cgJArr.Append(j);
+            cgDataArr.Append(DData[k]);
+         }
       }
    }
-   constr_grads->Finalize();
+
+   constr_grads = new SparseMatrix(cgIArr.GetData(), cgJArr.GetData(), cgDataArr.GetData(), cheight + dheight, ntdofs_loc);
 
    constr_info_is_current = true;
 }
@@ -348,12 +355,10 @@ bool HiopSparseOptimizationProblem::get_sparse_blocks_info(
    size_type& nnz_sparse_Jacineq, 
    size_type& nnz_sparse_Hess_Lagr)
 {
-   // MFEM_ABORT("HiopSparseOptimizationProblem::get_sparse_blocks_info note yet implemented.\n");
    nx = ntdofs_loc;
-   nnz_sparse_Jaceq = 8; // TODO: Hardcoded for our specific problem.
-   // 8 nonzero entries per row.
-   nnz_sparse_Jacineq = 0; // TODO: Hardcoded for our specific problem
-   nnz_sparse_Hess_Lagr = ntdofs_loc; // TODO: May need to fix this.
+   nnz_sparse_Jaceq = problem.get_nnz_sparse_Jaceq();
+   nnz_sparse_Jacineq = problem.get_nnz_sparse_Jacineq();
+   nnz_sparse_Hess_Lagr = problem.get_nnz_sparse_Hess_Lagr();
    return true;
 }
 
@@ -362,86 +367,14 @@ bool HiopSparseOptimizationProblem::eval_Jac_cons(const size_type& n, const size
                         const double* x, bool new_x,
                         const size_type& nnzJacS, index_type* iJacS, index_type* jJacS, double* MJacS)
 {
-   // std::cout << "HiopSparseOptimizationProblem::eval_Jac_cons 10 args.\n";
-
-   // MFEM_ASSERT(n == ntdofs_glob, "Global input mismatch.");
-   // MFEM_ASSERT(m == m_total, "Constraint size mismatch.");
-   // MFEM_ASSERT(num_cons <= m, "num_cons should be at most m = " << m);
-
-   // if (num_cons == 0) { return true; }
-
-   // if (new_x) { constr_info_is_current = false; }
-   // Vector x_vec(ntdofs_loc);
-   // x_vec = x;
-   // problem.new_x = new_x;
-   // UpdateConstrValsGrads(x_vec);
-
-   // const int *I = constr_grads->GetI();
-   // const int *J = constr_grads->GetJ();
-   // const double *data = constr_grads->GetData();
-
-
-   // if (iJacS != NULL && jJacS != NULL)
-   // {
-   //    for (int c = 0, k=0; c < num_cons; c++)
-   //    {
-   //       int row = idx_cons[c];
-   //       iJacS[c] = c;
-
-   //       MFEM_ASSERT(row< m_total, "Constraint index is out of bounds.");
-   //       for (int end = k + nnz_constr, j=I[row]; k < end; k++, j++)
-   //       {
-   //          // The matrix is stored by rows.
-   //          jJacS[k] = J[j];
-   //       }
-   //    }
-   // }
-
-   // if (MJacS != NULL)
-   // {
-   //    for (int c=0, k = 0; c < num_cons; c++)
-   //    {
-   //       int row = idx_cons[c];
-   //       // double* row_entries = constr_grads->GetRowEntries(row);
-   //       for (int end = c*nnz_constr, j=I[row]; k < end; k++, j++)
-   //       {
-   //          MJacS[k] = data[j];
-   //       }
-   //    }
-   // }
-   
-
-   // for (int end = In[i+1]; k < end; k++)
-   // {
-   //    int j = Jn[k];
-   //    std::cout << "sparse entry [i: " << i << ", j: " << j << "]: " << grad_C->Elem(i,j) << std::endl;
-   //    constr_grads->Elem(i, j) = grad_C->Elem(i, j);
-   // }
-
-   // std::cout << "Done HiopSparseOptimizationProblem::eval_Jac_cons 10 args.\n";
-
-   // return true; 
    return false;
 }
 
 void HiopSparseOptimizationProblem::UpdateHessLagr(const Vector &x, const Vector &lambda)
 {
-   // std::cout << "HiopSparseOptimizationProblem::UpdateHessLagr\n";
-
    problem.SetLagrangeMultipliers(lambda);
-   // problem.CalcObjectiveHess(x, *hess_lagr);
-
    Operator &hess = problem.CalcObjectiveHess(x);
    hess_lagr = dynamic_cast<SparseMatrix *>(&hess);
-   
-   for (int i = 0; i < 16; i++)
-   {
-      // std::cout << "i: " << hess_lagr->GetData()[i] << std::endl;
-   }
-   
-
-   // std::cout << "HiopSparseOptimizationProblem::UpdateHessLagr - DONE\n";
-   // MFEM_ABORT("Function not implemented.\n");
 }
 
 bool HiopSparseOptimizationProblem::eval_Hess_Lagr(const size_type& n,
@@ -450,54 +383,48 @@ bool HiopSparseOptimizationProblem::eval_Hess_Lagr(const size_type& n,
    bool new_lambda, const size_type& nnzHSS,
    index_type* iHSS, index_type* jHSS, double* MHSS)
 {
-   // std::cout << "HiopSparseOptimizationProblem::eval_Hess_Lagr funcall\n";
-   // MFEM_ABORT("HiopSparseOptimizationProblem::eval_Hess_Lagr not yet implemented.\n")
    MFEM_ASSERT(n == ntdofs_glob, "Global input mismatch.");
 
-   if (new_x) { constr_info_is_current = false; }
+   if (new_x || new_lambda) { constr_info_is_current = false; }
+
 
    Vector x_vec(ntdofs_loc), lambda_vec(m);
    x_vec = x;
    lambda_vec = lambda;
-   UpdateHessLagr(x_vec, lambda_vec);
-   
-   if (iHSS != NULL & jHSS != NULL) {
-      for (int i = 0; i < n; i++) iHSS[i] = jHSS[i] = i;
-   }
+   UpdateHessLagr(x_vec, lambda_vec); // Note: hess_lagr is CSR format
 
-   if (MHSS != NULL) {
-      for (int i = 0; i < n; i++) {
-         MHSS[i] = 2.;
+   /* Must convert from csr to triplet format */
+   if (iHSS != NULL && jHSS != NULL)
+   {
+      const int *I = hess_lagr->GetI();
+      const int *J = hess_lagr->GetJ();
+
+      int count = 0;
+      for (int i = 0; i < n/*num rows*/; i++)
+      {
+         for (int k = I[i]; k < I[i+1]; k++, count++)
+         {
+            iHSS[count] = i;
+            jHSS[count] = J[count];
+         }
+      }
+      assert(count == nnzHSS);
+   }
+   
+   if (MHSS != NULL)
+   {
+      int last;
+
+      const auto data_ = hess_lagr->GetData();
+      for (int i = 0; i < nnzHSS; i++)
+      {
+         MHSS[i] = data_[i];
       }
    }
-   // std::cout << "HiopSparseOptimizationProblem::eval_Hess_Lagr - DONE\n";
+
    return true;
 }
 
-// bool HiopSparseOptimizationProblem::eval_Hess_Lagr(const size_type& n,
-//    const size_type& m, const double* x, bool new_x,
-//    const double& obj_factor, const double* lambda,
-//    bool new_lambda, const size_type& nnzHSS,
-//    index_type* iHSS, index_type* jHSS, double* MHSS)
-// {
-//    std::cout << "HiopSparseOptimizationProblem::eval_Hess_Lagr funcall\n";
-//    // MFEM_ABORT("HiopSparseOptimizationProblem::eval_Hess_Lagr not yet implemented.\n");
-//    // Note: lambda is not used since all the constraints are linear and, therefore, do
-//    // not contribute to the Hessian of the Lagrangian
-//    assert(nnzHSS == n);
-
-//    if (iHSS != NULL & jHSS != NULL) {
-//       for (int i = 0; i < n; i++) iHSS[i] = jHSS[i] = i;
-//    }
-
-//    if (MHSS != NULL) {
-//       for (int i = 0; i < n; i++) {
-//          MHSS[i] = 2.;
-//       }
-//    }
-//    std::cout << "HiopSparseOptimizationProblem::eval_Hess_Lagr - DONE\n";
-//    return true;
-// }
 
 HiopNlpSparseOptimizer::HiopNlpSparseOptimizer() : OptimizationSolver(), hiop_problem(NULL)
 {
@@ -527,7 +454,6 @@ HiopNlpSparseOptimizer::~HiopNlpSparseOptimizer()
 void HiopNlpSparseOptimizer::SetOptimizationProblem(const OptimizationProblem &prob)
 {
    // Ensure that SetNNZSparse has been called first
-   // std::cout << "HiopNlpSparseOptimizer::SetOptimizationProblem\n";
    if (this->nnz_constr <= 0)
    {
       MFEM_ABORT("Must call HiopNlpSparseOptimizer::SetNNZSparse first.\n");
@@ -554,22 +480,22 @@ void HiopNlpSparseOptimizer::Mult(const Vector &xt, Vector &x) const
 
    hiop::hiopNlpSparse hiopInstance(*hiop_problem);
 
+   /* my added options */
+   hiopInstance.options->SetStringValue("force_resto", "yes");
+   hiopInstance.options->SetStringValue("KKTLinsys", "xdycyd");
+   hiopInstance.options->SetStringValue("duals_init", "zero");
+
    hiopInstance.options->SetNumericValue("rel_tolerance", rel_tol);
    hiopInstance.options->SetNumericValue("tolerance", abs_tol);
    hiopInstance.options->SetIntegerValue("max_iter", max_iter);
-
-   hiopInstance.options->SetStringValue("fixed_var", "relax");
-   hiopInstance.options->SetNumericValue("fixed_var_tolerance", 1e-20);
-   hiopInstance.options->SetNumericValue("fixed_var_perturb", 1e-9);
-
    hiopInstance.options->SetNumericValue("mu0", 1e-1);
 
-   // 0: no output; 3: not too much
-   // hiopInstance.options->SetIntegerValue("verbosity_level", print_level);
-   hiopInstance.options->SetIntegerValue("verbosity_level", 3);
-
+   // hiopInstance.options->SetStringValue("fixed_var", "relax");
+   // hiopInstance.options->SetNumericValue("fixed_var_tolerance", 1e-20);
+   // hiopInstance.options->SetNumericValue("fixed_var_perturb", 1e-9);
+   hiopInstance.options->SetIntegerValue("verbosity_level", print_level);
    // Disable safe mode to avoid crash
-   hiopInstance.options->SetStringValue("linsol_mode", "speculative");
+   hiopInstance.options->SetStringValue("linsol_mode", "stable");
 
    // Use the IPM solver.
    hiop::hiopAlgFilterIPMNewton solver(&hiopInstance);
@@ -577,10 +503,6 @@ void HiopNlpSparseOptimizer::Mult(const Vector &xt, Vector &x) const
 
    final_norm = solver.getObjective();
    final_iter = solver.getNumIterations();
-
-   // std::cout << "Solve Success: " << hiop::Solve_Success << std::endl;
-   // std::cout << "Solve Success Rel Tol: " << hiop::Solve_Success_RelTol << std::endl;
-   // std::cout << "hiopSolveStatus: " << status << std::endl;
 
    if (status != hiop::Solve_Success && status != hiop::Solve_Success_RelTol)
    {

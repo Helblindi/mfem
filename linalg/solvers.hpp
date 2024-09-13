@@ -885,6 +885,11 @@ public:
          lambda[i] = _lambda[i];
       }
    }
+   //TODO: These must be pure virtual in the sparse implementation.
+   virtual int get_nnz_sparse_Jaceq() const { return 0; } // = 0;
+   virtual int get_nnz_sparse_Jacineq() const { return 0; } // = 0;
+   virtual int get_nnz_sparse_Hess_Lagr() const { return 0; } // = 0;
+   /* end sparse additions */
 
    void SetEqualityConstraint(const Vector &c);
    void SetInequalityConstraint(const Vector &dl, const Vector &dh);

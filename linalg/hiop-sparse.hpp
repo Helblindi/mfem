@@ -43,6 +43,8 @@ private:
 
    Vector constr_vals;
    SparseMatrix *constr_grads;
+   Array<int> cgIArr, cgJArr;
+   Array<double> cgDataArr;
    SparseMatrix *hess_lagr;
    bool constr_info_is_current;
    void UpdateConstrValsGrads(const Vector x);
@@ -245,8 +247,6 @@ public:
                                index_type* jHSS,
                                double* MHSS);
 
-   virtual void GetHessForLagr(const Vector &x, SparseMatrix &hess) const 
-   { MFEM_ABORT("The objective hessian is not implemented."); }
 };
 
 /// Users can inherit this class to access to HiOp-specific functionality.
