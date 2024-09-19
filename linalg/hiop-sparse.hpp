@@ -42,10 +42,12 @@ private:
    const Vector *x_start;
 
    Vector constr_vals;
-   SparseMatrix *constr_grads;
+   SparseMatrix constr_grads;
    Array<int> cgIArr, cgJArr;
    Array<double> cgDataArr;
-   SparseMatrix *hess_lagr;
+   SparseMatrix hess_lagr;
+   Array<int> hessIArr, hessJArr;
+   Array<double> hessData;
    bool constr_info_is_current;
    void UpdateConstrValsGrads(const Vector x);
    void UpdateHessLagr(const Vector &x, const Vector &lambda);
@@ -57,14 +59,14 @@ public:
         nnz_constr(_nnz_constr), ntdofs_glob(ntdofs_loc),
         x_start(NULL),
         constr_vals(m_total),
-        constr_info_is_current(false)
+        constr_info_is_current(false),
+        constr_grads(m_total, ntdofs_loc, nnz_constr),
+        hess_lagr(ntdofs_loc, ntdofs_loc, 9)
    {
 #ifdef MFEM_USE_MPI
       // Used when HiOp with MPI support is called by a serial driver.
       comm = MPI_COMM_WORLD;
 #endif
-      constr_grads = new SparseMatrix(m_total, ntdofs_loc, nnz_constr);
-      hess_lagr = new SparseMatrix(ntdofs_loc, ntdofs_loc, 9);
    }
 
 #ifdef MFEM_USE_MPI
@@ -77,20 +79,17 @@ public:
         nnz_constr(_nnz_constr), ntdofs_glob(0),
         x_start(NULL),
         constr_vals(m_total),
-        constr_info_is_current(false)
+        constr_info_is_current(false),
+        constr_grads(m_total, ntdofs_loc, nnz_constr),
+        hess_lagr(ntdofs_loc, ntdofs_loc, 9)
    {
       MPI_Allreduce(&ntdofs_loc, &ntdofs_glob, 1, MPI_HIOP_SIZE_TYPE, MPI_SUM, comm);
-      constr_grads = new SparseMatrix(m_total, ntdofs_loc, nnz_constr);
    }
 #endif
 
    ~HiopSparseOptimizationProblem()
    {
-      delete constr_grads;
-      constr_grads = nullptr;
-
-      delete hess_lagr;
-      hess_lagr = nullptr;
+      // std::cout << "HiopSparseOptimizationProblem destructor\n";
    }
 
    void setStartingPoint(const Vector &x0) { x_start = &x0; }

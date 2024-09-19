@@ -165,16 +165,13 @@ bool HiopSparseOptimizationProblem::eval_Jac_cons(const size_type &n,
 
    if (iJacS != NULL && jJacS != NULL)
    {
-      const int *I = constr_grads->GetI();
-      const int *J = constr_grads->GetJ();
-
       int count = 0;
       for (int i = 0; i < m/*num_rows*/; i++)
       {
-         for (int k = I[i]; k < I[i+1]; k++, count++)
+         for (int k = cgIArr[i]; k < cgIArr[i+1]; k++, count++)
          {
             iJacS[count] = i;
-            jJacS[count] = J[count];
+            jJacS[count] = cgJArr[count];
          }
       }
       assert(count == nnzHSS);
@@ -184,10 +181,9 @@ bool HiopSparseOptimizationProblem::eval_Jac_cons(const size_type &n,
    {
       int last;
 
-      const auto data_ = constr_grads->GetData();
       for (int i = 0; i < nnzJacS; i++)
       {
-         MJacS[i] = data_[i];
+         MJacS[i] = cgDataArr[i];
       }
 
    }
@@ -211,6 +207,8 @@ bool HiopSparseOptimizationProblem::get_vecdistrib_info(size_type global_n,
    }
 
    delete [] sizes;
+   sizes = nullptr;
+
    return true;
 #else
    // Returning false means that Hiop runs in non-distributed mode.
@@ -262,6 +260,7 @@ bool HiopSparseOptimizationProblem::iterate_callback(int iter,
 
 void HiopSparseOptimizationProblem::UpdateConstrValsGrads(const Vector x)
 {
+   // std::cout << "UpdateConstrValsGrads\n";
    if (constr_info_is_current) { return; }
 
    cgIArr.SetSize(0, 0), cgJArr.SetSize(0,0), cgDataArr.SetSize(0,0.);
@@ -333,9 +332,6 @@ void HiopSparseOptimizationProblem::UpdateConstrValsGrads(const Vector x)
          }
       }
    }
-
-   constr_grads = new SparseMatrix(cgIArr.GetData(), cgJArr.GetData(), cgDataArr.GetData(), cheight + dheight, ntdofs_loc);
-
    constr_info_is_current = true;
 }
 
@@ -372,9 +368,31 @@ bool HiopSparseOptimizationProblem::eval_Jac_cons(const size_type& n, const size
 
 void HiopSparseOptimizationProblem::UpdateHessLagr(const Vector &x, const Vector &lambda)
 {
+   // std::cout << "UpdateHessLagr\n";
+   hessIArr.SetSize(0,0), hessJArr.SetSize(0,0), hessData.SetSize(0,0.);
+
    problem.SetLagrangeMultipliers(lambda);
    Operator &hess = problem.CalcObjectiveHess(x);
-   hess_lagr = dynamic_cast<SparseMatrix *>(&hess);
+
+   const SparseMatrix * hl_ptr = dynamic_cast<SparseMatrix *>(&hess);
+
+   const int *In = hl_ptr->GetI(), *Jn = hl_ptr->GetJ();
+   const double *Data = hl_ptr->GetData();
+
+   const int lagr_height = hl_ptr->Height();
+
+   for (int i = 0, k=0; i < lagr_height; i++)
+   {
+      hessIArr.Append(In[i]);
+      for (int end = In[i+1]; k < end; k++)
+      {
+         int j = Jn[k];
+         hessJArr.Append(j);
+         hessData.Append(Data[k]);
+      }
+   }
+   int lastc_row = In[lagr_height];
+   hessIArr.Append(lastc_row);
 }
 
 bool HiopSparseOptimizationProblem::eval_Hess_Lagr(const size_type& n,
@@ -383,6 +401,7 @@ bool HiopSparseOptimizationProblem::eval_Hess_Lagr(const size_type& n,
    bool new_lambda, const size_type& nnzHSS,
    index_type* iHSS, index_type* jHSS, double* MHSS)
 {
+   // std::cout << "eval_Hess_Lagr\n";
    MFEM_ASSERT(n == ntdofs_glob, "Global input mismatch.");
 
    if (new_x || new_lambda) { constr_info_is_current = false; }
@@ -396,16 +415,16 @@ bool HiopSparseOptimizationProblem::eval_Hess_Lagr(const size_type& n,
    /* Must convert from csr to triplet format */
    if (iHSS != NULL && jHSS != NULL)
    {
-      const int *I = hess_lagr->GetI();
-      const int *J = hess_lagr->GetJ();
+      // const int *I = hess_lagr.GetI();
+      // const int *J = hess_lagr.GetJ();
 
       int count = 0;
       for (int i = 0; i < n/*num rows*/; i++)
       {
-         for (int k = I[i]; k < I[i+1]; k++, count++)
+         for (int k = hessIArr[i]; k < hessIArr[i+1]; k++, count++)
          {
             iHSS[count] = i;
-            jHSS[count] = J[count];
+            jHSS[count] = hessJArr[count];
          }
       }
       assert(count == nnzHSS);
@@ -415,10 +434,10 @@ bool HiopSparseOptimizationProblem::eval_Hess_Lagr(const size_type& n,
    {
       int last;
 
-      const auto data_ = hess_lagr->GetData();
+      // const auto data_ = hess_lagr.GetData();
       for (int i = 0; i < nnzHSS; i++)
       {
-         MHSS[i] = data_[i];
+         MHSS[i] = hessData[i];
       }
    }
 
@@ -448,11 +467,13 @@ HiopNlpSparseOptimizer::HiopNlpSparseOptimizer(MPI_Comm comm_)
 
 HiopNlpSparseOptimizer::~HiopNlpSparseOptimizer()
 {
+   // std::cout << "HiopNlpSparseOptimizer virtual destructor\n";
    delete hiop_problem;
 }
 
 void HiopNlpSparseOptimizer::SetOptimizationProblem(const OptimizationProblem &prob)
 {
+   // std::cout << "HiopNlpSparseOptimizer::SetOptimizationProblem\n";
    // Ensure that SetNNZSparse has been called first
    if (this->nnz_constr <= 0)
    {
