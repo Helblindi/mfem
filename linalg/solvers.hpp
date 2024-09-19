@@ -866,6 +866,7 @@ public:
    /// In parallel, insize is the number of the local true dofs.
    OptimizationProblem(int insize, const Operator *C_, const Operator *D_);
 
+   virtual ~OptimizationProblem() {}
    /// Objective F(x). In parallel, the result should be reduced over tasks.
    virtual real_t CalcObjective(const Vector &x) const = 0;
    /// The result grad is expected to enter with the correct size.
