@@ -21,6 +21,10 @@ mfem_find_package(HIOP HIOP HIOP_DIR
   "Paths to headers required by HIOP."
   "Libraries required by HIOP.")
 
+# Is there a way to get the namespace libraries HiOp::hiop_tpl from the mfem_find_package command?
+# Ideally I would like to not have to call find_package(hiop) twice essentially
+find_package(hiop REQUIRED NAMES hiop HiOp HINTS "${HIOP_DIR}")
+
 # this test fails with parallel MFEM since mpi.h is not available (cxx compiler is used for some reason)
 #  CHECK_BUILD HIOP_VERSION_OK TRUE
 #"
