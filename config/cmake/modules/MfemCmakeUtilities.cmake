@@ -106,7 +106,7 @@ macro(add_mfem_examples EXE_SRCS)
 
     # TODO: Is there a way to link a coinhsl to a specific example?
     if (MFEM_USE_COINHSL)
-      target_link_libraries(${EXE_NAME} ${COINHSL_LIBRARY})
+      target_link_libraries(${EXE_NAME} HiOp::hiop_tpl)
     endif()
 
   endforeach(SRC_FILE)
