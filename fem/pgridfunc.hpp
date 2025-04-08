@@ -248,6 +248,9 @@ public:
        determined from the element with maximal attribute. */
    void ProjectDiscCoefficient(VectorCoefficient &coeff) override;
 
+   void ProjectDiscCoefficientMin(Coefficient &coeff);
+   void ProjectDiscCoefficientMax(Coefficient &coeff);
+
    void ProjectDiscCoefficient(Coefficient &coeff, AvgType type) override;
 
    void ProjectDiscCoefficient(VectorCoefficient &vcoeff, AvgType type) override;

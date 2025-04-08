@@ -435,6 +435,8 @@ protected:
        shared vdofs and counts in how many zones each vdof appears. */
    void AccumulateAndCountZones(Coefficient &coeff, AvgType type,
                                 Array<int> &zones_per_vdof);
+   void MinZones(Coefficient &coeff);
+   void MaxZones(Coefficient &coeff);
 
    /** @brief Accumulates (depending on @a type) the values of @a vcoeff at all
        shared vdofs and counts in how many zones each vdof appears. */

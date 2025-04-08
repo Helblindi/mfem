@@ -647,6 +647,30 @@ void ParGridFunction::ProjectDiscCoefficient(Coefficient &coeff, AvgType type)
    ComputeMeans(type, zones_per_vdof);
 }
 
+void ParGridFunction::ProjectDiscCoefficientMin(Coefficient &coeff)
+{
+   // Number of zones that contain a given dof.
+   Array<int> zones_per_vdof;
+   MinZones(coeff);
+
+   // Accumulate for all vdofs.
+   GroupCommunicator &gcomm = pfes->GroupComm();
+   gcomm.Reduce<real_t>(data, GroupCommunicator::Min);
+   gcomm.Bcast<real_t>(data);
+}
+
+void ParGridFunction::ProjectDiscCoefficientMax(Coefficient &coeff)
+{
+   // Number of zones that contain a given dof.
+   Array<int> zones_per_vdof;
+   MaxZones(coeff);
+
+   // Accumulate for all vdofs.
+   GroupCommunicator &gcomm = pfes->GroupComm();
+   gcomm.Reduce<real_t>(data, GroupCommunicator::Max);
+   gcomm.Bcast<real_t>(data);
+}
+
 void ParGridFunction::ProjectDiscCoefficient(VectorCoefficient &vcoeff,
                                              AvgType type)
 {

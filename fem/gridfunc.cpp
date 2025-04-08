@@ -2005,6 +2005,67 @@ void GridFunction::AccumulateAndCountZones(Coefficient &coeff,
    }
 }
 
+void GridFunction::MinZones(Coefficient &coeff)
+{
+// Local interpolation
+Array<int> vdofs;
+Vector vals;
+*this = 0.0;
+
+HostReadWrite();
+
+for (int i = 0; i < fes->GetNE(); i++)
+{
+fes->GetElementVDofs(i, vdofs);
+// Local interpolation of coeff.
+vals.SetSize(vdofs.Size());
+fes->GetFE(i)->Project(coeff, *fes->GetElementTransformation(i), vals);
+
+double a = 0., b = 0., _min = 0.;
+// Accumulate values in all dofs
+for (int j = 0; j < vdofs.Size(); j++)
+{
+   a = (*this)(vdofs[j]);
+   b = vals[j];
+   if (a <= 0 || b <= 0) {
+      if (a > 0) _min = a;
+      else if (b > 0) _min = b;
+      else _min = 0.; // Or throw an exception, depending on desired behavior
+   }
+   else
+   {
+      _min = std::min(a, b);
+   }
+
+   (*this)(vdofs[j]) = _min; 
+}
+}
+}
+
+void GridFunction::MaxZones(Coefficient &coeff)
+{
+// Local interpolation
+Array<int> vdofs;
+Vector vals;
+*this = 0.0;
+
+HostReadWrite();
+
+for (int i = 0; i < fes->GetNE(); i++)
+{
+fes->GetElementVDofs(i, vdofs);
+// Local interpolation of coeff.
+vals.SetSize(vdofs.Size());
+fes->GetFE(i)->Project(coeff, *fes->GetElementTransformation(i), vals);
+
+// Accumulate values in all dofs
+for (int j = 0; j < vdofs.Size(); j++)
+{
+   (*this)(vdofs[j]) = std::max((*this)(vdofs[j]), vals[j]); 
+}
+}
+}
+
 void GridFunction::AccumulateAndCountZones(VectorCoefficient &vcoeff,
                                            AvgType type,
                                            Array<int> &zones_per_vdof)
